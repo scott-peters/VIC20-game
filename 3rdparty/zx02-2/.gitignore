@@ -1,0 +1,7 @@
+*.obx
+tests/OUT.BIN
+tests/data.zx02
+build/
+*.lst
+*.lab
+tests/data.zx12

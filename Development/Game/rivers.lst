@@ -1,0 +1,437 @@
+------- FILE rivers.s LEVEL 1 PASS 2
+      1  1cd0 ????						; Shankar Ganesh, Abhinav Saxena, Scott Peters, Naznin Shishir
+      2  1cd0 ????						; CPSC 599.82 - Final Submission
+      3  1cd0 ????						; Survival Hunt (game over)
+      4  1cd0 ????						; TODO(abhinav): add a mod function for top and bottom to stay within line and erase vals
+      5  1cd0 ????						; --------------
+      6  1cd0 ????	       00 a2	   JTIMER     =	$A2
+      7  1cd0 ????	       00 93	   CHR_CLR_HOME =	$93
+      8  1cd0 ????	       ff d2	   CHROUT     =	$FFD2
+      9  1cd0 ????	       90 0f	   SCRCOL     =	$900F
+     10  1cd0 ????	       1e 00	   SCRNMEM    =	$1E00
+     11  1cd0 ????	       1c 00	   CUSTCHRS   =	$1C00
+     12  1cd0 ????	       00 08	   MULTCOL    =	$08
+     13  1cd0 ????	       e5 5f	   CLS	      =	$E55F
+     14  1cd0 ????	       1e 32	   TOPADDADDR EQU	$1e32
+     15  1cd0 ????	       96 32	   TOPADDCOLADDR EQU	$9632
+     16  1cd0 ????						; Screen Settings
+     17  1cd0 ????	       90 02	   SCRNCOL    EQU	$9002
+     18  1cd0 ????	       90 03	   SCRNROW    EQU	$9003
+     19  1cd0 ????	       90 05	   SCRCHM     EQU	$9005
+     20  1cd0 ????	       90 00	   SCRNHPOS   EQU	$9000
+     21  1cd0 ????	       90 0f	   SCRNCOLR   EQU	$900F
+     22  1cd0 ????	       90 0f	   SCRCOL     EQU	$900F
+     23  1cd0 ????						;;;;;; COLOURS ;;;;;;
+     24  1cd0 ????
+     25  1cd0 ????	       00 00	   BLACK      EQU	#0
+     26  1cd0 ????	       00 01	   WHITE      EQU	#1
+     27  1cd0 ????	       00 02	   RED	      EQU	#2
+     28  1cd0 ????	       00 07	   YELLOW     EQU	#7
+     29  1cd0 ????	       00 05	   GREEN      EQU	#5
+     30  1cd0 ????	       00 06	   BLUE       EQU	#6
+     31  1cd0 ????	       00 03	   CYAN       EQU	#3
+     32  1cd0 ????	       00 04	   PURPLE     EQU	#4
+     33  1cd0 ????	       00 08	   ORANGE     EQU	#8
+     34  1cd0 ????	       1c 00	   CHRMEM     EQU	$1C00
+     35  1cd0 ????	       00 16	   NCOLUMNS   EQU	22
+     36  1cd0 ????	       00 17	   NROWS      EQU	23
+     37  1cd0 ????	       96 00	   COLOURRAM  EQU	$9600
+     38  1cd0 ????	       96 00	   SCRNCOLOR  EQU	$9600
+     39  1cd0 ????	       00 88	   SCREENCOLOUR EQU	#$88
+     40  1cd0 ????
+     41  1cd0 ????						; --------------
+     42  1cd0 ????
+     43  1cd0 ????				      processor	6502
+     44  1cd0 ????
+     45  10ee ????				      SEG	CODE
+     46  1001					      org	$1001
+     47  1001
+     48  1001				   .basic_start
+     49  1001		       0b 10		      dc.w	.basic_end
+     50  1003		       57 15		      dc.w	5463
+     51  1005		       9e 34 31 30*	      dc.b	$9e, "4109", $00
+     52  100b				   .basic_end
+     53  100b		       00 00		      dc.w	$00
+     54  100d
+     55  100d
+     56  100d				   start
+     57  100d		       78		      sei		; Disable intterupts
+     58  100e		       d8		      cld		; Clear Decimal
+     59  100f		       a9 7f		      lda	#%01111111
+     60  1011		       a9 ff		      lda	#$ff	; Custom char address = 1C000
+     61  1013		       8d 05 90 	      sta	SCRCHM
+     62  1016		       a9 08		      lda	#$08	; Multicolor Screen
+     63  1018		       8d 0f 90 	      sta	SCRCOL
+     64  101b		       20 ca 10 	      jsr	initScreen
+     65  101e							; set the auxiliary color to some color
+     66  101e		       a9 10		      lda	#%00010000
+     67  1020		       8d 0e 90 	      sta	$900E
+     68  1023		       20 29 10 	      jsr	draw_river
+     69  1026		       4c 26 10 	      jmp	.	; jam
+     70  1029
+     71  1029
+     72  1029				   draw_river
+     73  1029		       a2 03		      ldx	#3	; position offset at which the first river sprite is located
+     74  102b		       a0 03		      ldy	#3	; total number of river related sprites.
+     75  102d				   .riverdraw1
+     76  102d		       8a		      txa
+     77  102e		       99 0a 1f 	      sta	$1f0b-1,y
+     78  1031		       a9 0e		      lda	#$0e	; the charactor color should be light blue ~14
+     79  1033		       99 0a 97 	      sta	$970b-1,y
+     80  1036		       ca		      dex
+     81  1037		       88		      dey
+     82  1038		       d0 f3		      bne	.riverdraw1
+     83  103a		       a2 03		      ldx	#3	; position offset at which the first river sprite is located
+     84  103c		       a0 03		      ldy	#3	; total number of river related sprites.
+     85  103e				   .riverdraw2
+     86  103e		       8a		      txa
+     87  103f		       99 0d 1f 	      sta	$1f0e-1,y
+     88  1042		       a9 0e		      lda	#$0e	; the charactor color should be light blue ~14
+     89  1044		       99 0d 97 	      sta	$970e-1,y
+     90  1047		       ca		      dex
+     91  1048		       88		      dey
+     92  1049		       d0 f3		      bne	.riverdraw2
+     93  104b		       a2 03		      ldx	#3	; position offset at which the first river sprite is located
+     94  104d		       a0 03		      ldy	#3	; total number of river related sprites.
+     95  104f				   .riverdraw3
+     96  104f		       8a		      txa
+     97  1050		       99 10 1f 	      sta	$1f11-1,y
+     98  1053		       a9 0e		      lda	#$0e	; the charactor color should be light blue ~14
+     99  1055		       99 10 97 	      sta	$9711-1,y
+    100  1058		       ca		      dex
+    101  1059		       88		      dey
+    102  105a		       d0 f3		      bne	.riverdraw3
+    103  105c		       a2 03		      ldx	#3	; position offset at which the first river sprite is located
+    104  105e		       a0 03		      ldy	#3	; total number of river related sprites.
+    105  1060				   .riverdraw4
+    106  1060		       8a		      txa
+    107  1061		       99 13 1f 	      sta	$1f14-1,y
+    108  1064		       a9 0e		      lda	#$0e	; the charactor color should be light blue ~14
+    109  1066		       99 13 97 	      sta	$9714-1,y
+    110  1069		       ca		      dex
+    111  106a		       88		      dey
+    112  106b		       d0 f3		      bne	.riverdraw4
+    113  106d				   .do_scroll
+    114  106d		       20 74 10 	      jsr	char_scroll
+    115  1070							;jsr	  smooth_char_scroll
+    116  1070							;jsr	  wait_top
+    117  1070		       20 6d 10 	      jsr	.do_scroll
+    118  1073		       60		      rts
+    119  1074
+    120  1074				   char_scroll
+    121  1074		       ad 0b 1f 	      lda	$1f0b
+    122  1077		       85 fb		      sta	$fb
+    123  1079		       a0 00		      ldy	#0
+    124  107b				   .charscrollloop
+    125  107b		       b9 0c 1f 	      lda	$1f0b+1,y
+    126  107e		       99 0b 1f 	      sta	$1f0b,y
+    127  1081		       c8		      iny
+    128  1082		       c0 0b		      cpy	#11
+    129  1084		       d0 f5		      bne	.charscrollloop
+    130  1086							;iny
+    131  1086		       a5 fb		      lda	$fb
+    132  1088		       99 0b 1f 	      sta	$1f0b,y
+    133  108b		       60		      rts
+    134  108c
+    135  108c				   smooth_char_scroll
+    136  108c		       a0 02		      ldy	#2
+    137  108e				   .rotateouterloop
+    138  108e		       a2 10		      ldx	#16
+    139  1090				   .rotateinnerloop
+    140  1090		       bd 0f 1c 	      lda	$1c10-1,x
+    141  1093		       2a		      rol
+    142  1094		       3e bf 1c 	      rol	$1cc0-1,x
+    143  1097		       3e af 1c 	      rol	$1cb0-1,x
+    144  109a		       3e 9f 1c 	      rol	$1ca0-1,x
+    145  109d		       3e 8f 1c 	      rol	$1c90-1,x
+    146  10a0		       3e 7f 1c 	      rol	$1c80-1,x
+    147  10a3		       3e 6f 1c 	      rol	$1c70-1,x
+    148  10a6		       3e 5f 1c 	      rol	$1c60-1,x
+    149  10a9		       3e 4f 1c 	      rol	$1c50-1,x
+    150  10ac		       3e 3f 1c 	      rol	$1c40-1,x
+    151  10af		       3e 2f 1c 	      rol	$1c30-1,x
+    152  10b2		       3e 1f 1c 	      rol	$1c20-1,x
+    153  10b5		       3e 0f 1c 	      rol	$1c10-1,x
+    154  10b8							; change the original
+    155  10b8		       ca		      dex
+    156  10b9		       d0 d5		      bne	.rotateinnerloop
+    157  10bb		       88		      dey
+    158  10bc		       d0 d0		      bne	.rotateouterloop
+    159  10be		       60		      rts
+    160  10bf
+    161  10bf				   wait_top
+    162  10bf		       a9 00		      lda	#0
+    163  10c1		       85 a2		      sta	JTIMER	;set the Jiffy Clock to 0.
+    164  10c3				   .expire_top
+    165  10c3		       a5 a2		      lda	JTIMER
+    166  10c5		       c9 0c		      cmp	#12
+    167  10c7		       d0 fa		      bne	.expire_top
+    168  10c9		       60		      rts
+    169  10ca
+    170  10ca							;;;;;;;;; INIT SCREEN ;;;;;;;;
+    171  10ca				   initScreen SUBROUTINE
+    172  10ca		       a0 06		      ldy	#$06
+    173  10cc				   .loop
+    174  10cc		       b9 e7 10 	      lda	.screenSettings-1,y
+    175  10cf		       99 ff 8f 	      sta	SCRNHPOS-1,y
+    176  10d2		       88		      dey
+    177  10d3		       d0 f7		      bne	.loop
+    178  10d5
+    179  10d5		       a9 88		      lda	#SCREENCOLOUR
+    180  10d7		       8d 0f 90 	      sta	SCRNCOLR
+    181  10da		       a0 ff		      ldy	#$ff
+    182  10dc				   .clrloop
+    183  10dc		       a9 00		      lda	#$00
+    184  10de		       99 ff 1d 	      sta	SCRNMEM-1,y
+    185  10e1		       99 fe 1e 	      sta	SCRNMEM+#$ff-1,y
+    186  10e4		       88		      dey
+    187  10e5		       d0 f5		      bne	.clrloop
+    188  10e7		       60		      rts
+    189  10e8
+    190  10e8				   .screenSettings
+    191  10e8		       04 02 96 1d*	      .byte.b	$04, $02, $96, $1d, $0, $ff
+    192  10ee
+    193  10ee
+    194  10ee							;;;;;; CUSTOM CHARACTERS ;;;;;;
+    195  10ee
+    196  1cd0 ????				      SEG	GFX
+    197  1c00					      ORG	$1C00
+    198  1c00							; sprites for rivers
+    199  1c00							; Note the color of the river needs to be set as aux color (11)
+    200  1c00							; the sprite color will be white (10)
+    201  1c00							; the screen color is represented by 00
+    202  1c00							; Bottom represents the sprites which will be at the bottom (meaning the river at the top and ground/path at the bottom)
+    203  1c00							; Top is the other way around, screen color at the top and the river at the bottom.
+    204  1c00				   BITMAPS
+    205  1c00		       00 00	   NBLANK     =	0
+    206  1c00				   BLANK
+    207  1c00		       00 00 00 00*	      ds.b	16,$00
+    208  1c00		       00 01	   NRIVERCONVEXA1 =	1
+    209  1c10				   RIVERCONVEXA1
+    210  1c10		       03		      .byte.b	%00000011	; 03 - when you do ror (at $1c10)
+    211  1c11		       0e		      .byte.b	%00001110	; 0e
+    212  1c12		       3a		      .byte.b	%00111010	; 3a
+    213  1c13		       ea		      .byte.b	%11101010	; ea
+    214  1c14		       aa		      .byte.b	%10101010	; aa
+    215  1c15		       aa		      .byte.b	%10101010	; aa
+    216  1c16		       aa		      .byte.b	%10101010	; aa
+    217  1c17		       aa		      .byte.b	%10101010	; aa
+    218  1c18		       aa		      .byte.b	%10101010	; aa
+    219  1c19		       aa		      .byte.b	%10101010	; aa
+    220  1c1a		       aa		      .byte.b	%10101010	; aa
+    221  1c1b		       aa		      .byte.b	%10101010	; aa
+    222  1c1c		       ea		      .byte.b	%11101010	; ea
+    223  1c1d		       3a		      .byte.b	%00111010	; 3a
+    224  1c1e		       0e		      .byte.b	%00001110	; 0e
+    225  1c1f		       03		      .byte.b	%00000011	; 03
+    226  1c20
+    227  1c20
+    228  1c20		       00 02	   NRIVERCONVEXB2 =	2
+    229  1c20				   RIVERCONVEXB2
+    230  1c20		       c0		      .byte.b	%11000000
+    231  1c21		       b0		      .byte.b	%10110000
+    232  1c22		       ac		      .byte.b	%10101100
+    233  1c23		       ab		      .byte.b	%10101011
+    234  1c24		       aa		      .byte.b	%10101010
+    235  1c25		       aa		      .byte.b	%10101010
+    236  1c26		       aa		      .byte.b	%10101010
+    237  1c27		       aa		      .byte.b	%10101010
+    238  1c28		       aa		      .byte.b	%10101010
+    239  1c29		       aa		      .byte.b	%10101010
+    240  1c2a		       aa		      .byte.b	%10101010
+    241  1c2b		       aa		      .byte.b	%10101010
+    242  1c2c		       ab		      .byte.b	%10101011
+    243  1c2d		       ac		      .byte.b	%10101100
+    244  1c2e		       b0		      .byte.b	%10110000
+    245  1c2f		       c0		      .byte.b	%11000000
+    246  1c30
+    247  1c30		       00 03	   NRIVERSTRAIGHT3 =	3
+    248  1c30				   RIVERSTRAIGHT3
+    249  1c30		       00		      .byte.b	%00000000
+    250  1c31		       00		      .byte.b	%00000000
+    251  1c32		       00		      .byte.b	%00000000
+    252  1c33		       ff		      .byte.b	%11111111
+    253  1c34		       aa		      .byte.b	%10101010
+    254  1c35		       aa		      .byte.b	%10101010
+    255  1c36		       aa		      .byte.b	%10101010
+    256  1c37		       aa		      .byte.b	%10101010
+    257  1c38		       aa		      .byte.b	%10101010
+    258  1c39		       aa		      .byte.b	%10101010
+    259  1c3a		       aa		      .byte.b	%10101010
+    260  1c3b		       ff		      .byte.b	%11111111
+    261  1c3c		       00		      .byte.b	%00000000
+    262  1c3d		       00		      .byte.b	%00000000
+    263  1c3e		       00		      .byte.b	%00000000
+    264  1c3f		       00		      .byte.b	%00000000
+    265  1c40
+    266  1c40		       00 04	   NRIVERSTRAIGHT4 =	4
+    267  1c40				   RIVERSTRAIGHT4
+    268  1c40		       00		      .byte.b	%00000000
+    269  1c41		       00		      .byte.b	%00000000
+    270  1c42		       00		      .byte.b	%00000000
+    271  1c43		       ff		      .byte.b	%11111111
+    272  1c44		       aa		      .byte.b	%10101010
+    273  1c45		       aa		      .byte.b	%10101010
+    274  1c46		       aa		      .byte.b	%10101010
+    275  1c47		       aa		      .byte.b	%10101010
+    276  1c48		       aa		      .byte.b	%10101010
+    277  1c49		       aa		      .byte.b	%10101010
+    278  1c4a		       aa		      .byte.b	%10101010
+    279  1c4b		       ff		      .byte.b	%11111111
+    280  1c4c		       00		      .byte.b	%00000000
+    281  1c4d		       00		      .byte.b	%00000000
+    282  1c4e		       00		      .byte.b	%00000000
+    283  1c4f		       00		      .byte.b	%00000000
+    284  1c50
+    285  1c50		       00 05	   NRIVERSTRAIGHT5 =	5
+    286  1c50				   RIVERSTRAIGHT5
+    287  1c50		       00		      .byte.b	%00000000
+    288  1c51		       00		      .byte.b	%00000000
+    289  1c52		       00		      .byte.b	%00000000
+    290  1c53		       ff		      .byte.b	%11111111
+    291  1c54		       aa		      .byte.b	%10101010
+    292  1c55		       aa		      .byte.b	%10101010
+    293  1c56		       aa		      .byte.b	%10101010
+    294  1c57		       aa		      .byte.b	%10101010
+    295  1c58		       aa		      .byte.b	%10101010
+    296  1c59		       aa		      .byte.b	%10101010
+    297  1c5a		       aa		      .byte.b	%10101010
+    298  1c5b		       ff		      .byte.b	%11111111
+    299  1c5c		       00		      .byte.b	%00000000
+    300  1c5d		       00		      .byte.b	%00000000
+    301  1c5e		       00		      .byte.b	%00000000
+    302  1c5f		       00		      .byte.b	%00000000
+    303  1c60
+    304  1c60		       00 06	   NRIVERSTRAIGHT6 =	6
+    305  1c60				   RIVERSTRAIGHT6
+    306  1c60		       00		      .byte.b	%00000000
+    307  1c61		       00		      .byte.b	%00000000
+    308  1c62		       00		      .byte.b	%00000000
+    309  1c63		       ff		      .byte.b	%11111111
+    310  1c64		       aa		      .byte.b	%10101010
+    311  1c65		       aa		      .byte.b	%10101010
+    312  1c66		       aa		      .byte.b	%10101010
+    313  1c67		       aa		      .byte.b	%10101010
+    314  1c68		       aa		      .byte.b	%10101010
+    315  1c69		       aa		      .byte.b	%10101010
+    316  1c6a		       aa		      .byte.b	%10101010
+    317  1c6b		       ff		      .byte.b	%11111111
+    318  1c6c		       00		      .byte.b	%00000000
+    319  1c6d		       00		      .byte.b	%00000000
+    320  1c6e		       00		      .byte.b	%00000000
+    321  1c6f		       00		      .byte.b	%00000000
+    322  1c70
+    323  1c70		       00 07	   NRIVERSTRAIGHT7 =	7
+    324  1c70				   RIVERSTRAIGHT7
+    325  1c70		       00		      .byte.b	%00000000
+    326  1c71		       00		      .byte.b	%00000000
+    327  1c72		       00		      .byte.b	%00000000
+    328  1c73		       ff		      .byte.b	%11111111
+    329  1c74		       aa		      .byte.b	%10101010
+    330  1c75		       aa		      .byte.b	%10101010
+    331  1c76		       aa		      .byte.b	%10101010
+    332  1c77		       aa		      .byte.b	%10101010
+    333  1c78		       aa		      .byte.b	%10101010
+    334  1c79		       aa		      .byte.b	%10101010
+    335  1c7a		       aa		      .byte.b	%10101010
+    336  1c7b		       ff		      .byte.b	%11111111
+    337  1c7c		       00		      .byte.b	%00000000
+    338  1c7d		       00		      .byte.b	%00000000
+    339  1c7e		       00		      .byte.b	%00000000
+    340  1c7f		       00		      .byte.b	%00000000
+    341  1c80
+    342  1c80		       00 08	   NRIVERVCONCAVEA8 =	8
+    343  1c80				   RIVERVCONCAVEA8
+    344  1c80		       00		      .byte.b	%00000000
+    345  1c81		       00		      .byte.b	%00000000
+    346  1c82		       00		      .byte.b	%00000000
+    347  1c83		       c0		      .byte.b	%11000000
+    348  1c84		       b0		      .byte.b	%10110000
+    349  1c85		       af		      .byte.b	%10101111
+    350  1c86		       aa		      .byte.b	%10101010
+    351  1c87		       aa		      .byte.b	%10101010
+    352  1c88		       aa		      .byte.b	%10101010
+    353  1c89		       aa		      .byte.b	%10101010
+    354  1c8a		       af		      .byte.b	%10101111
+    355  1c8b		       b0		      .byte.b	%10110000
+    356  1c8c		       c0		      .byte.b	%11000000
+    357  1c8d		       00		      .byte.b	%00000000
+    358  1c8e		       00		      .byte.b	%00000000
+    359  1c8f		       00		      .byte.b	%00000000
+    360  1c90
+    361  1c90
+    362  1c90		       00 09	   NRIVERVCONCAVEB9 =	9
+    363  1c90				   RIVERVCONCAVEB9
+    364  1c90		       00		      .byte.b	%00000000
+    365  1c91		       00		      .byte.b	%00000000
+    366  1c92		       00		      .byte.b	%00000000
+    367  1c93		       03		      .byte.b	%00000011
+    368  1c94		       0e		      .byte.b	%00001110
+    369  1c95		       fa		      .byte.b	%11111010
+    370  1c96		       aa		      .byte.b	%10101010
+    371  1c97		       aa		      .byte.b	%10101010
+    372  1c98		       aa		      .byte.b	%10101010
+    373  1c99		       aa		      .byte.b	%10101010
+    374  1c9a		       fa		      .byte.b	%11111010
+    375  1c9b		       0e		      .byte.b	%00001110
+    376  1c9c		       03		      .byte.b	%00000011
+    377  1c9d		       00		      .byte.b	%00000000
+    378  1c9e		       00		      .byte.b	%00000000
+    379  1c9f		       00		      .byte.b	%00000000
+    380  1ca0
+    381  1ca0		       00 0a	   NRIVERSTRAIGHT10 =	10
+    382  1ca0				   RIVERSTRAIGHT10
+    383  1ca0		       00		      .byte.b	%00000000
+    384  1ca1		       00		      .byte.b	%00000000
+    385  1ca2		       00		      .byte.b	%00000000
+    386  1ca3		       ff		      .byte.b	%11111111
+    387  1ca4		       aa		      .byte.b	%10101010
+    388  1ca5		       aa		      .byte.b	%10101010
+    389  1ca6		       aa		      .byte.b	%10101010
+    390  1ca7		       aa		      .byte.b	%10101010
+    391  1ca8		       aa		      .byte.b	%10101010
+    392  1ca9		       aa		      .byte.b	%10101010
+    393  1caa		       aa		      .byte.b	%10101010
+    394  1cab		       ff		      .byte.b	%11111111
+    395  1cac		       00		      .byte.b	%00000000
+    396  1cad		       00		      .byte.b	%00000000
+    397  1cae		       00		      .byte.b	%00000000
+    398  1caf		       00		      .byte.b	%00000000
+    399  1cb0
+    400  1cb0		       00 0b	   NRIVERSTRAIGHT11 =	11
+    401  1cb0				   RIVERSTRAIGHT11
+    402  1cb0		       00		      .byte.b	%00000000
+    403  1cb1		       00		      .byte.b	%00000000
+    404  1cb2		       00		      .byte.b	%00000000
+    405  1cb3		       ff		      .byte.b	%11111111
+    406  1cb4		       aa		      .byte.b	%10101010
+    407  1cb5		       aa		      .byte.b	%10101010
+    408  1cb6		       aa		      .byte.b	%10101010
+    409  1cb7		       aa		      .byte.b	%10101010
+    410  1cb8		       aa		      .byte.b	%10101010
+    411  1cb9		       aa		      .byte.b	%10101010
+    412  1cba		       aa		      .byte.b	%10101010
+    413  1cbb		       ff		      .byte.b	%11111111
+    414  1cbc		       00		      .byte.b	%00000000
+    415  1cbd		       00		      .byte.b	%00000000
+    416  1cbe		       00		      .byte.b	%00000000
+    417  1cbf		       00		      .byte.b	%00000000
+    418  1cc0
+    419  1cc0		       00 0c	   NRIVERSTRAIGHT12 =	12
+    420  1cc0				   RIVERSTRAIGHT12
+    421  1cc0		       00		      .byte.b	%00000000
+    422  1cc1		       00		      .byte.b	%00000000
+    423  1cc2		       00		      .byte.b	%00000000
+    424  1cc3		       ff		      .byte.b	%11111111
+    425  1cc4		       aa		      .byte.b	%10101010
+    426  1cc5		       aa		      .byte.b	%10101010
+    427  1cc6		       aa		      .byte.b	%10101010
+    428  1cc7		       aa		      .byte.b	%10101010
+    429  1cc8		       aa		      .byte.b	%10101010
+    430  1cc9		       aa		      .byte.b	%10101010
+    431  1cca		       aa		      .byte.b	%10101010
+    432  1ccb		       ff		      .byte.b	%11111111
+    433  1ccc		       00		      .byte.b	%00000000
+    434  1ccd		       00		      .byte.b	%00000000
+    435  1cce		       00		      .byte.b	%00000000
+    436  1ccf		       00		      .byte.b	%00000000

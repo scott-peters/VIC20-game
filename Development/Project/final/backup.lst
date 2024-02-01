@@ -1,0 +1,749 @@
+------- FILE backup.asm LEVEL 1 PASS 2
+      1  1326 ????						; Screen Size: 24 Columns, 12-14 rows.
+      2  1326 ????						; Character Size: 8x16. Max. Sprites = 30
+      3  1326 ????						; Screen Colour:
+      4  1326 ????						;	Orange background looks like the best. (maybe something using auxiliary?)
+      5  1326 ????						; Sprites:
+      6  1326 ????						;			1. Tree ---- DONE
+      7  1326 ????						;			2. Tiger (animated for jumping) -- Can't really do this from a top-down view. Scratch it?
+      8  1326 ????						;			3. Cub Faces ---- DONE
+      9  1326 ????						;			4. Hunter (animated) --- Base is done.
+     10  1326 ????						;			5. Bullet ---- DONE
+     11  1326 ????						;			6. Pit -- Fix
+     12  1326 ????						;			7. Small Animals (2 types) for food (powerups) -- DONE
+     13  1326 ????						;			8. River (horizontally scrolling parallax)
+     14  1326 ????						;			9. Mountains (just in the backgrounds) (just river is enough I think)
+     15  1326 ????						;			10. Bars for level and powerup -- DONE
+     16  1326 ????						; Features:
+     17  1326 ????						;	1. Lives -- Shooting Collision, one cub dies -- HUGE BUG
+     18  1326 ????						;	2. Powerup & Powerup bar -- DONE. NEED TO IMPLEMENT SWITCH TO ACTIVATE
+     19  1326 ????						;	3. Pit Collision -- DONE
+     20  1326 ????						;	4. Hunter
+     21  1326 ????						;	5. Shooting Sound -- DONE
+     22  1326 ????						;	7. Powerup sound or pickup food sound? -- Nah.
+     23  1326 ????						;	8. Boids Algorithm -- NOPE. Spent a day trying to get it to work but no luck
+     24  1326 ????						;	9. PCG to generate tiles I guess -- if time permits!!
+     25  1326 ????						;	10. Metatiles?? -- Seems the most plausible option given the time. Was reading about poisson disk sampling (maybe something using this?)
+     26  1326 ????						;	11. RNG to generate I guess
+     27  1326 ????						;	12. Path tile -- No need since we can have blank tiles in the middle now!
+     28  1326 ????						;	13. End Screen -- We'll see
+     29  1326 ????						;	14. Tilemap -- ^ see above on metatiles
+     30  1326 ????						;	15. Harder levels -- make food and paths lower
+     31  1326 ????						; TODO:
+     32  1326 ????						;	1. Title screen make NOICE --- Scott
+     33  1326 ????						;	2. Speed -- DONE
+     34  1326 ????						;	3. Vertical Parallax Scrolling if branching into left/right. (keep track. ooooo amazing!!!) )might not do this.
+     35  1326 ????						;	4. Horizontal Scrolling River or some thing
+     36  1326 ????
+     37  1326 ????						;;; SPEED BUG -- So this is very hard to fix as it has to do with the raster beam
+     38  1326 ????						;;; Only speed values multiple of $20 make the tiger/cub stable
+     39  1326 ????						;;; Other values cause a bit of jitter
+     40  1326 ????
+     41  1326 ????				      processor	6502
+     42  1326 ????
+     43  1326 ????	       1e 00	   SCRNMEM    EQU	$1E00
+     44  1326 ????	       94 00	   SCRNRAST   EQU	$9400
+     45  1326 ????	       90 00	   SCRNHPOS   EQU	$9000
+     46  1326 ????	       90 01	   SCRNVPOS   EQU	$9001
+     47  1326 ????	       90 02	   SCRNNCOL   EQU	$9002
+     48  1326 ????	       90 03	   SCRNNROW   EQU	$9003
+     49  1326 ????	       90 05	   SCRNCHLOC  EQU	$9005
+     50  1326 ????	       1c 00	   CHRMEM     EQU	$1C00
+     51  1326 ????	       96 00	   COLOURRAM  EQU	$9600
+     52  1326 ????	       90 0f	   SCRNCOLR   EQU	$900F
+     53  1326 ????	       90 0e	   AUXCOLR    EQU	$900E
+     54  1326 ????	       90 0e	   OSCVOL     EQU	$900E
+     55  1326 ????	       90 0a	   OSC1FREQ   EQU	$900A
+     56  1326 ????	       90 0b	   OSC2FREQ   EQU	$900B
+     57  1326 ????	       90 0c	   OSC3FREQ   EQU	$900C
+     58  1326 ????	       90 0d	   NOISEFREQ  EQU	$900D
+     59  1326 ????	       91 11	   JOYPORTA   EQU	$9111
+     60  1326 ????	       91 20	   JOYPORTB   EQU	$9120
+     61  1326 ????	       91 22	   DDRB       EQU	$9122
+     62  1326 ????
+     63  1326 ????	       00 07	   TIGERPOSX  EQU	$7
+     64  1326 ????	       1e dc	   TIGERPOSY  EQU	$1edc
+     65  1326 ????	       96 dc	   TIGERCOLRAM EQU	$96dc
+     66  1326 ????
+     67  1326 ????	       00 09	   LIVES      EQU	$9
+     68  1326 ????	       00 0a	   POWERUP    EQU	$A
+     69  1326 ????	       00 0b	   FOODACC    EQU	$B
+     70  1326 ????	       00 0c	   LEVEL      EQU	$C
+     71  1326 ????	       00 14	   SPEED      EQU	$14
+     72  1326 ????	       00 15	   DELTASPEED EQU	$15
+     73  1326 ????
+     74  1326 ????	       00 16	   NCOLUMNS   EQU	22
+     75  1326 ????	       00 0d	   NROWS      EQU	13
+     76  1326 ????
+     77  1326 ????	       00 18	   CRASH      EQU	$18
+     78  1326 ????
+     79  1326 ????	       1f 08	   SCREENLIVES EQU	$1f08
+     80  1326 ????	       97 08	   SCREENLIVESCLR EQU	$9708
+     81  1326 ????
+     82  1326 ????	       1f 1a	   SCREENPOWER EQU	$1f1a
+     83  1326 ????	       97 1a	   SCREENPOWERCOLR EQU	$971a
+     84  1326 ????	       00 19	   NPOWERUPBARS EQU	$19
+     85  1326 ????
+     86  1326 ????						;; TODO: Organize all the vars properly
+     87  1326 ????						;;;;;; ZP ;;;;;;;;
+     88  1326 ????						;;;;;; CONSTANTS ;;;;;;
+     89  1326 ????
+     90  1326 ????
+     91  1326 ????
+     92  1326 ????						;;;;;; COLOURS ;;;;;;
+     93  1326 ????
+     94  1326 ????	       00 00	   BLACK      EQU	#0
+     95  1326 ????	       00 01	   WHITE      EQU	#1
+     96  1326 ????	       00 02	   RED	      EQU	#2
+     97  1326 ????	       00 07	   YELLOW     EQU	#7
+     98  1326 ????	       00 05	   GREEN      EQU	#5
+     99  1326 ????	       00 06	   BLUE       EQU	#6
+    100  1326 ????	       00 03	   CYAN       EQU	#3
+    101  1326 ????	       00 04	   PURPLE     EQU	#4
+    102  1326 ????	       00 08	   ORANGE     EQU	#8
+    103  1326 ????
+    104  1326 ????	       00 7f	   SCREENCOLOUR EQU	#$7f
+    105  1326 ????
+    106  1326 ????
+    107  1326 ????	       00 20	   RANDOMLO   EQU	$20
+    108  1326 ????	       00 21	   RANDOMHI   EQU	$21
+    109  1326 ????
+    110  1326 ????	       00 a2	   JIFFY      EQU	$A2
+    111  1326 ????
+    112  1326 ????
+    113  1326 ????				      SEG	CODE
+    114  1001					      ORG	$1001
+    115  1001
+    116  1001
+    117  1001				   BASICSTUB
+    118  1001		       0b 10		      dc.w	.BASICEND
+    119  1003		       57 15		      dc.w	5463
+    120  1005		       9e 34 31 30*	      dc.b	$9e, "4109", $00
+    121  100b				   .BASICEND
+    122  100b		       00 00		      dc.w	$00
+    123  100d
+    124  100d
+    125  100d							;; Rework/fix
+    126  100d							;; TODO -- Data list and loop initialization of vars
+    127  100d				   START
+    128  100d		       78		      sei		; Disable intterupts
+    129  100e		       d8		      cld		; Clear Decimal
+    130  100f		       20 3c 11 	      jsr	initScreen
+    131  1012		       a9 20		      lda	#$20	; BUG. Maybe because of raster? If yes, will moving to interrupts fix it?
+    132  1014		       85 14		      sta	SPEED
+    133  1016							; jsr	showTitle
+    134  1016		       20 f0 11 	      jsr	copyChars
+    135  1019		       20 1b 12 	      jsr	drawRow
+    136  101c		       a9 0b		      lda	#11
+    137  101e		       85 07		      sta	TIGERPOSX
+    138  1020		       20 61 11 	      jsr	drawTiger
+    139  1023		       a9 06		      lda	#6
+    140  1025		       85 09		      sta	LIVES
+    141  1027		       a9 a9		      lda	#$A9
+    142  1029		       85 21		      sta	RANDOMHI
+    143  102b		       a9 30		      lda	#$30
+    144  102d		       85 20		      sta	RANDOMLO
+    145  102f		       a9 00		      lda	#$00
+    146  1031		       85 0a		      sta	POWERUP
+    147  1033		       85 19		      sta	NPOWERUPBARS
+    148  1035		       20 3c 12 	      jsr	drawHealthPower
+    149  1038				   mainloop
+    150  1038		       a2 72		      ldx	#$72	; Pheww.. This took soooo long. Might change it to interrupts
+    151  103a				   .wait
+    152  103a		       ec 04 90 	      cpx	$9004
+    153  103d		       d0 fb		      bne	.wait
+    154  103f
+    155  103f		       20 98 11 	      jsr	clearTiger
+    156  1042
+    157  1042		       a5 14		      lda	SPEED	; Speed is only > 20 when powerup is active
+    158  1044		       c9 20		      cmp	#$20
+    159  1046		       f0 0f		      beq	.nodec
+    160  1048
+    161  1048		       a5 0a		      lda	POWERUP
+    162  104a		       38		      sec
+    163  104b		       e9 08		      sbc	#$08
+    164  104d		       90 08		      bcc	.nodec
+    165  104f
+    166  104f		       a9 00		      lda	#$00
+    167  1051		       85 0a		      sta	POWERUP
+    168  1053		       a9 20		      lda	#$20
+    169  1055		       85 14		      sta	SPEED
+    170  1057
+    171  1057		       20 e7 10    .nodec     jsr	checkKey
+    172  105a		       a5 09		      lda	LIVES
+    173  105c		       f0 0f		      beq	gameOver
+    174  105e
+    175  105e		       a5 15		      lda	DELTASPEED
+    176  1060		       18		      clc
+    177  1061		       65 14		      adc	SPEED
+    178  1063		       85 15		      sta	DELTASPEED
+    179  1065		       b0 09		      bcs	scrollChar
+    180  1067
+    181  1067		       20 a5 10 	      jsr	moveScreen
+    182  106a				   contMain
+    183  106a		       4c 38 10 	      jmp	mainloop
+    184  106d
+    185  106d
+    186  106d							;; TODO: PRESS SPACE TO RESTART
+    187  106d				   gameOver
+    188  106d		       4c 6d 10 	      jmp	.
+    189  1070
+    190  1070
+    191  1070							;;; Scroll the entire char mem by one char (8x16) (16px)
+    192  1070							;; COMPLETE -- DO NOT TOUCH THIS
+    193  1070				   scrollChar SUBROUTINE
+    194  1070		       a0 58		      ldy	#$58	; Scroll lower half
+    195  1072				   .loop1
+    196  1072		       b9 99 1e 	      lda	$1e9a-1,y
+    197  1075		       99 af 1e 	      sta	$1eb0-1,y
+    198  1078		       b9 99 96 	      lda	$969a-1,y
+    199  107b		       99 af 96 	      sta	$96b0-1,y
+    200  107e		       88		      dey
+    201  107f		       d0 f1		      bne	.loop1
+    202  1081
+    203  1081		       20 a5 10 	      jsr	moveScreen
+    204  1084
+    205  1084		       a0 9a		      ldy	#$9a	; Scroll upper half
+    206  1086				   .loop2
+    207  1086
+    208  1086		       b9 ff 1d 	      lda	$1e00-1,y
+    209  1089		       99 15 1e 	      sta	$1e16-1,y
+    210  108c		       b9 ff 95 	      lda	$9600-1,y
+    211  108f		       99 15 96 	      sta	$9616-1,y
+    212  1092		       88		      dey
+    213  1093		       d0 f1		      bne	.loop2
+    214  1095
+    215  1095		       a0 16		      ldy	#NCOLUMNS	; Empty the top row
+    216  1097		       a9 00		      lda	#NBLANK
+    217  1099				   .loop3
+    218  1099		       99 ff 1d 	      sta	$1e00-1,y
+    219  109c		       88		      dey
+    220  109d		       d0 fa		      bne	.loop3
+    221  109f
+    222  109f		       20 1b 12 	      jsr	drawRow	; Draw a row of the current tilemap
+    223  10a2
+    224  10a2		       4c 6a 10 	      jmp	contMain	; Jump to mainloop
+    225  10a5
+    226  10a5
+    227  10a5							;; DELTASPEED increments by speed and according to it, we calculate the
+    228  10a5							;; amount to shift. We first divide the value by
+    229  10a5							;; 16 (16 px height) (4 lsr's) which clips the value to 0-15
+    230  10a5							;; and then add the min amount * 2 (original pos of screen)
+    231  10a5							;; It's basically just linear interpolation
+    232  10a5							;; Project/Map values from 0-f to screen original pos-+8 (since screen can only be moved with 8px)
+    233  10a5							;; Screen can be moved only by 2px which is why we divide the value by 2 at the end
+    234  10a5
+    235  10a5							;; My dad helped me a bit with this part.
+    236  10a5							;; Just discussion (he doesn't know 6502 or the platform)
+    237  10a5				   moveScreen SUBROUTINE
+    238  10a5		       a5 15		      lda	DELTASPEED	; Calculate amount to shift the screen
+    239  10a7		       4a		      lsr
+    240  10a8		       4a		      lsr
+    241  10a9		       4a		      lsr
+    242  10aa		       4a		      lsr
+    243  10ab		       aa		      tax
+    244  10ac		       18		      clc
+    245  10ad		       69 04		      adc	#$04
+    246  10af		       4a		      lsr
+    247  10b0		       8d 01 90 	      sta	$9001
+    248  10b3
+    249  10b3
+    250  10b3		       a9 00		      lda	#$00
+    251  10b5		       a0 20		      ldy	#32	; Several ways to do this.
+    252  10b7				   .clearChr		; After trying out various methods,
+    253  10b7		       99 2f 1c 	      sta	CHRMEM+#NTIGERSHIFT*16-1,y	; I think clearing everything and re-drawing is the best
+    254  10ba		       99 af 1c 	      sta	CHRMEM+#NLIFESHIFT*16-1,y
+    255  10bd		       99 8f 1c 	      sta	CHRMEM+#NBARSHIFT*16-1,y
+    256  10c0		       88		      dey
+    257  10c1		       d0 f4		      bne	.clearChr
+    258  10c3
+    259  10c3		       8a		      txa
+    260  10c4		       49 0f		      eor	#$0f	; Get the difference
+    261  10c6		       aa		      tax		; We need to shift the char starting at (0xf - shift)
+    262  10c7							; sbc	#15
+    263  10c7
+    264  10c7		       a0 00		      ldy	#00	; Copy the original char again to charmem
+    265  10c9				   .copychr		; shifting the appropriate amount
+    266  10c9		       b9 a4 12 	      lda	TIGER,y
+    267  10cc		       9d 30 1c 	      sta	CHRMEM+#NTIGERSHIFT*16,x
+    268  10cf		       b9 04 13 	      lda	CUB,y
+    269  10d2		       9d b0 1c 	      sta	CHRMEM+#NLIFESHIFT*16,x
+    270  10d5		       a9 fe		      lda	#$fe
+    271  10d7		       9d 90 1c 	      sta	CHRMEM+#NBARSHIFT*16,x
+    272  10da		       e8		      inx
+    273  10db		       c8		      iny
+    274  10dc		       c0 10		      cpy	#16
+    275  10de		       d0 e9		      bne	.copychr
+    276  10e0
+    277  10e0		       20 61 11 	      jsr	drawTiger	; Draw the tiger & powerup bar
+    278  10e3
+    279  10e3		       60		      rts
+    280  10e4
+    281  10e4
+    282  10e4							;; This is used as a bridge to get back to mainloop
+    283  10e4							;; as it is out of bounds for branching (or used to be)
+    284  10e4		       4c 38 10    bridge     jmp	mainloop
+    285  10e7
+    286  10e7
+    287  10e7							;; Complete
+    288  10e7							;; TODO -- Try without interrupts, by reading port directly
+    289  10e7							;; FIXME -- BUG IN COLLISION AND LIVES
+    290  10e7				   checkKey   SUBROUTINE
+    291  10e7		       a9 00		      lda	#$00
+    292  10e9		       85 18		      sta	CRASH
+    293  10eb
+    294  10eb		       a5 c5		      lda	$c5
+    295  10ed		       c9 11		      cmp	#17
+    296  10ef		       d0 13		      bne	.checkRight
+    297  10f1
+    298  10f1		       a6 07		      ldx	TIGERPOSX
+    299  10f3		       f0 28		      beq	.ret
+    300  10f5		       ca		      dex
+    301  10f6		       20 ea 11 	      jsr	checkTreeSides
+    302  10f9		       f0 22		      beq	.ret
+    303  10fb		       20 d0 11 	      jsr	checkSideCollision
+    304  10fe		       a5 18		      lda	CRASH
+    305  1100		       d0 1c		      bne	.collide
+    306  1102		       c6 07		      dec	TIGERPOSX
+    307  1104
+    308  1104				   .checkRight
+    309  1104		       c9 12		      cmp	#18
+    310  1106		       d0 15		      bne	.ret
+    311  1108		       a6 07		      ldx	TIGERPOSX
+    312  110a		       e0 16		      cpx	#NCOLUMNS
+    313  110c		       f0 0f		      beq	.ret
+    314  110e		       e8		      inx
+    315  110f		       20 ea 11 	      jsr	checkTreeSides
+    316  1112		       f0 09		      beq	.ret
+    317  1114		       20 d0 11 	      jsr	checkSideCollision
+    318  1117		       a5 18		      lda	CRASH
+    319  1119		       d0 03		      bne	.collide
+    320  111b		       e6 07		      inc	TIGERPOSX
+    321  111d		       60	   .ret       rts
+    322  111e				   .collide
+    323  111e		       a5 09		      lda	LIVES
+    324  1120		       f0 fb		      beq	.ret
+    325  1122		       c6 09		      dec	LIVES
+    326  1124		       20 28 11 	      jsr	rmLife
+    327  1127		       60		      rts
+    328  1128
+    329  1128
+    330  1128				   rmLife     SUBROUTINE
+    331  1128		       a9 00		      lda	#NBLANK
+    332  112a		       a4 09		      ldy	LIVES
+    333  112c		       99 08 1f 	      sta	SCREENLIVES,y
+    334  112f		       60		      rts
+    335  1130
+    336  1130							; Takes X position of side collision to remove obstacle
+    337  1130				   rmRowObstacle SUBROUTINE
+    338  1130		       a9 00		      lda	#NBLANK
+    339  1132		       bc dc 1e 	      ldy	TIGERPOSY,x
+    340  1135		       60		      rts
+    341  1136
+    342  1136				   rmColObstacle SUBROUTINE
+    343  1136		       a9 00		      lda	#NBLANK
+    344  1138		       bc c6 1e 	      ldy	TIGERPOSY-#NCOLUMNS,x
+    345  113b		       60		      rts
+    346  113c
+    347  113c
+    348  113c							;;;;;;;;; INIT SCREEN ;;;;;;;;
+    349  113c				   initScreen SUBROUTINE
+    350  113c		       a0 06		      ldy	#$06
+    351  113e				   .loop
+    352  113e		       b9 59 11 	      lda	.screenSettings-1,y
+    353  1141		       99 ff 8f 	      sta	SCRNHPOS-1,y
+    354  1144		       88		      dey
+    355  1145		       d0 f7		      bne	.loop
+    356  1147
+    357  1147		       a9 7f		      lda	#SCREENCOLOUR
+    358  1149		       8d 0f 90 	      sta	SCRNCOLR
+    359  114c		       a0 ff		      ldy	#$ff
+    360  114e				   .clrloop
+    361  114e		       a9 00		      lda	#$00
+    362  1150		       99 ff 1d 	      sta	SCRNMEM-1,y
+    363  1153		       99 fe 1e 	      sta	SCRNMEM+#$ff-1,y
+    364  1156		       88		      dey
+    365  1157		       d0 f5		      bne	.clrloop
+    366  1159		       60		      rts
+    367  115a
+    368  115a				   .screenSettings
+    369  115a		       04 02 96 1d*	      .byte.b	$04, $02, $96, $1d, $0, $ff
+    370  1160
+    371  1160
+    372  1160
+    373  1160							;;;;;;;;;; TITLE SCREEN ;;;;;;;;
+    374  1160
+    375  1160							;; TODO
+    376  1160				   showTitle  SUBROUTINE
+    377  1160		       60		      rts
+    378  1161
+    379  1161
+    380  1161							;; Draw the tiger
+    381  1161				   drawTiger  SUBROUTINE
+    382  1161		       a9 03		      lda	#NTIGERSHIFT
+    383  1163		       a4 07		      ldy	TIGERPOSX
+    384  1165		       99 dc 1e 	      sta	TIGERPOSY,y
+    385  1168		       a9 04		      lda	#NTIGER
+    386  116a		       99 f2 1e 	      sta	TIGERPOSY+#NCOLUMNS,y
+    387  116d
+    388  116d		       a9 00		      lda	#BLACK
+    389  116f		       99 dc 96 	      sta	TIGERCOLRAM,y
+    390  1172		       99 f2 96 	      sta	TIGERCOLRAM+#NCOLUMNS,y
+    391  1175
+    392  1175		       a5 0a	   .cont      lda	POWERUP
+    393  1177		       4a		      lsr
+    394  1178		       4a		      lsr
+    395  1179		       4a		      lsr
+    396  117a		       4a		      lsr
+    397  117b		       4a		      lsr
+    398  117c		       4a		      lsr
+    399  117d		       a8		      tay
+    400  117e		       f0 17		      beq	.ret
+    401  1180		       84 19		      sty	NPOWERUPBARS
+    402  1182
+    403  1182				   .barloop
+    404  1182		       a9 08		      lda	#NBAR
+    405  1184		       99 19 1f 	      sta	SCREENPOWER-1,y
+    406  1187		       a9 09		      lda	#NBARSHIFT
+    407  1189		       99 2f 1f 	      sta	SCREENPOWER-1+#NCOLUMNS,y
+    408  118c		       a9 02		      lda	#RED
+    409  118e		       99 19 97 	      sta	SCREENPOWERCOLR-1,y
+    410  1191		       99 2f 97 	      sta	SCREENPOWERCOLR-1+#NCOLUMNS,y
+    411  1194		       88		      dey
+    412  1195		       d0 eb		      bne	.barloop
+    413  1197		       60	   .ret       rts
+    414  1198
+    415  1198							;; Clear the tiger
+    416  1198				   clearTiger SUBROUTINE
+    417  1198		       a9 00		      lda	#NBLANK
+    418  119a		       a4 07		      ldy	TIGERPOSX
+    419  119c		       99 dc 1e 	      sta	TIGERPOSY,y
+    420  119f		       99 f2 1e 	      sta	TIGERPOSY+#NCOLUMNS,y
+    421  11a2
+    422  11a2		       a0 03		      ldy	#3
+    423  11a4				   .barloop
+    424  11a4		       99 19 1f 	      sta	SCREENPOWER-1,y
+    425  11a7		       99 2f 1f 	      sta	SCREENPOWER-1+#NCOLUMNS,y
+    426  11aa		       88		      dey
+    427  11ab		       d0 f7		      bne	.barloop
+    428  11ad		       60		      rts
+    429  11ae
+    430  11ae
+    431  11ae							;;; TODO: Collision can be done better (and simpler!). But it works for now so not changing it
+    432  11ae
+    433  11ae							;; check collision at position X
+    434  11ae							;; Param is in X register -- position X
+    435  11ae							;; Always checked
+    436  11ae							;; Sets Zero Flag!!!!!
+    437  11ae							;; Z = 1 means no collision.
+    438  11ae				   checkFrontCollision SUBROUTINE
+    439  11ae		       bd c6 1e 	      lda	TIGERPOSY-#NCOLUMNS,x
+    440  11b1		       c9 00		      cmp	#NBLANK
+    441  11b3		       f0 12		      beq	.ret
+    442  11b5		       c9 07		      cmp	#NFOOD
+    443  11b7		       d0 0f		      bne	crash
+    444  11b9		       18		      clc
+    445  11ba		       a5 0a		      lda	POWERUP
+    446  11bc		       c9 ff		      cmp	#$ff
+    447  11be		       f0 04		      beq	.ret2
+    448  11c0		       69 0f		      adc	#$0f
+    449  11c2		       85 0a		      sta	POWERUP
+    450  11c4		       20 36 11    .ret2      jsr	rmColObstacle
+    451  11c7		       60	   .ret       rts
+    452  11c8
+    453  11c8				   crash
+    454  11c8		       a9 01		      lda	#1
+    455  11ca		       85 18		      sta	CRASH
+    456  11cc		       20 30 11 	      jsr	rmRowObstacle
+    457  11cf		       60		      rts
+    458  11d0
+    459  11d0							;; This is only needed when moving left/right
+    460  11d0							;; Takes one param in X which is the X position to check against
+    461  11d0							;; Sets zero flag!!!
+    462  11d0							;; Z = 1 means no collision
+    463  11d0				   checkSideCollision SUBROUTINE
+    464  11d0		       bd dc 1e 	      lda	TIGERPOSY,x
+    465  11d3		       c9 00		      cmp	#NBLANK
+    466  11d5		       f0 12		      beq	.ret
+    467  11d7		       c9 07		      cmp	#NFOOD
+    468  11d9		       d0 ed		      bne	crash
+    469  11db		       18		      clc
+    470  11dc		       a5 0a		      lda	POWERUP
+    471  11de		       c9 ff		      cmp	#$ff
+    472  11e0		       f0 04		      beq	.ret2
+    473  11e2		       69 0f		      adc	#$0f
+    474  11e4		       85 0a		      sta	POWERUP
+    475  11e6		       20 30 11    .ret2      jsr	rmRowObstacle
+    476  11e9		       60	   .ret       rts
+    477  11ea
+    478  11ea							;; Checks for bounds. Realistically, a tiger CAN move
+    479  11ea							;; through trees, climb trees, etc. But this is a game.
+    480  11ea							;; And in this game, the tiger cannot move through trees.
+    481  11ea							;; Takes one argument in the X register,
+    482  11ea							;; the X position to check
+    483  11ea							;; Sets Zero flag!!!
+    484  11ea							;; Z = 0 means no collision
+    485  11ea				   checkTreeSides SUBROUTINE
+    486  11ea		       bd dc 1e 	      lda	TIGERPOSY,x
+    487  11ed		       c9 01		      cmp	#NTREE
+    488  11ef		       60		      rts
+    489  11f0
+    490  11f0
+    491  11f0							; Complete
+    492  11f0				   copyChars  SUBROUTINE
+    493  11f0		       a0 c1		      ldy	#NBITMAPS*16+1
+    494  11f2				   .copyloop
+    495  11f2		       b9 63 12 	      lda	BITMAPS-1,y
+    496  11f5		       99 ff 1b 	      sta	CHRMEM-1,y
+    497  11f8		       88		      dey
+    498  11f9		       d0 f7		      bne	.copyloop
+    499  11fb		       60		      rts
+    500  11fc
+    501  11fc
+    502  11fc							;;;;;;;;;;;;;; AUDIO ;;;;;;;;;;;;;;;
+    503  11fc							; Complete
+    504  11fc				   SHOOTSOUND SUBROUTINE
+    505  11fc		       a9 0f		      lda	#$0f
+    506  11fe		       8d 0e 90 	      sta	OSCVOL
+    507  1201		       a0 ff		      ldy	#$ff
+    508  1203				   .shootloop
+    509  1203		       8c 0c 90 	      sty	OSC3FREQ
+    510  1206		       8c 0d 90 	      sty	NOISEFREQ
+    511  1209		       a2 ff		      ldx	#$ff
+    512  120b				   .shootwaste
+    513  120b		       ca		      dex
+    514  120c		       d0 fd		      bne	.shootwaste
+    515  120e		       8e 0c 90 	      stx	OSC3FREQ
+    516  1211		       8e 0d 90 	      stx	NOISEFREQ
+    517  1214		       e8		      inx
+    518  1215		       88		      dey
+    519  1216		       c0 80		      cpy	#128
+    520  1218		       d0 e9		      bne	.shootloop
+    521  121a		       60		      rts
+    522  121b
+    523  121b
+    524  121b							;; TODO - TILEMAP, random generation, etc.
+    525  121b							;; PCG
+    526  121b				   drawRow    SUBROUTINE
+    527  121b		       ac 24 13 	      ldy	tilemapRivUp
+    528  121e				   .loop
+    529  121e		       a9 01		      lda	#NTREE
+    530  1220		       99 ff 1d 	      sta	SCRNMEM-1,y
+    531  1223		       a9 05		      lda	#GREEN
+    532  1225		       99 ff 95 	      sta	COLOURRAM-1,y
+    533  1228		       88		      dey
+    534  1229		       d0 f3		      bne	.loop
+    535  122b
+    536  122b		       ac 24 13 	      ldy	tilemapRivUp
+    537  122e				   .loop2
+    538  122e		       a9 01		      lda	#NTREE
+    539  1230		       99 0f 1e 	      sta	SCRNMEM-1+#NCOLUMNS-6,y
+    540  1233		       a9 05		      lda	#GREEN
+    541  1235		       99 0f 96 	      sta	COLOURRAM-1+#NCOLUMNS-6,y
+    542  1238		       88		      dey
+    543  1239		       d0 f3		      bne	.loop2
+    544  123b		       60		      rts
+    545  123c
+    546  123c				   drawHealthPower SUBROUTINE
+    547  123c		       a0 03		      ldy	#$03
+    548  123e				   .loop
+    549  123e		       a9 0a		      lda	#NLIFE
+    550  1240		       99 07 1f 	      sta	SCREENLIVES-1,y
+    551  1243		       a9 0b		      lda	#NLIFESHIFT
+    552  1245		       99 1d 1f 	      sta	SCREENLIVES+#NCOLUMNS-1,y
+    553  1248		       a9 00		      lda	#BLACK
+    554  124a		       99 07 97 	      sta	SCREENLIVESCLR-1,y
+    555  124d		       99 1d 97 	      sta	SCREENLIVESCLR+#NCOLUMNS-1,y
+    556  1250		       88		      dey
+    557  1251		       d0 eb		      bne	.loop
+    558  1253		       60		      rts
+    559  1254
+    560  1254							;;;; DRAGONFIRE!!!
+    561  1254							;;;; 16-bit LFSR
+    562  1254				   genRandom  SUBROUTINE
+    563  1254		       a5 20		      lda	RANDOMLO
+    564  1256		       6a		      ror
+    565  1257		       6a		      ror
+    566  1258		       6a		      ror
+    567  1259		       45 21		      eor	RANDOMHI
+    568  125b		       0a		      asl
+    569  125c		       0a		      asl
+    570  125d		       26 20		      rol	RANDOMLO
+    571  125f		       26 21		      rol	RANDOMHI
+    572  1261		       a5 20		      lda	RANDOMLO
+    573  1263		       60		      rts
+    574  1264
+    575  1264				   BITMAPS
+    576  1264		       00 0c	   NBITMAPS   =	12
+    577  1264
+    578  1264		       00 00	   NBLANK     =	0
+    579  1264				   BLANK
+    580  1264		       00 00 00 00*	      ds.b	16,0
+    581  1274
+    582  1274		       00 01	   NTREE      =	1
+    583  1274							; Green top
+    584  1274				   TREETOP
+    585  1274		       18		      .byte.b	%00011000
+    586  1275		       3c		      .byte.b	%00111100
+    587  1276		       3c		      .byte.b	%00111100
+    588  1277		       7e		      .byte.b	%01111110
+    589  1278		       7e		      .byte.b	%01111110
+    590  1279		       7e		      .byte.b	%01111110
+    591  127a		       ff		      .byte.b	%11111111
+    592  127b		       ff		      .byte.b	%11111111
+    593  127c		       ff		      .byte.b	%11111111
+    594  127d		       ff		      .byte.b	%11111111
+    595  127e		       7e		      .byte.b	%01111110
+    596  127f		       3c		      .byte.b	%00111100
+    597  1280		       3c		      .byte.b	%00111100
+    598  1281		       3c		      .byte.b	%00111100
+    599  1282		       3c		      .byte.b	%00111100
+    600  1283		       7e		      .byte.b	%01111110
+    601  1284
+    602  1284		       00 02	   NBULLET    =	2
+    603  1284							; Black
+    604  1284				   BULLET
+    605  1284		       18		      .byte.b	%00011000
+    606  1285		       18		      .byte.b	%00011000
+    607  1286		       18		      .byte.b	%00011000
+    608  1287		       18		      .byte.b	%00011000
+    609  1288		       18		      .byte.b	%00011000
+    610  1289		       18		      .byte.b	%00011000
+    611  128a		       18		      .byte.b	%00011000
+    612  128b		       18		      .byte.b	%00011000
+    613  128c		       18		      .byte.b	%00011000
+    614  128d		       18		      .byte.b	%00011000
+    615  128e		       18		      .byte.b	%00011000
+    616  128f		       18		      .byte.b	%00011000
+    617  1290		       18		      .byte.b	%00011000
+    618  1291		       18		      .byte.b	%00011000
+    619  1292		       18		      .byte.b	%00011000
+    620  1293		       18		      .byte.b	%00011000
+    621  1293		       00 03	   NTIGERSHIFT =	3
+    622  1294				   TIGERSHIFT
+    623  1294		       00 00 00 00*	      ds.b	16,0
+    624  1294		       00 04	   NTIGER     =	4
+    625  12a4							; Black Colour
+    626  12a4				   TIGER
+    627  12a4		       3c		      .byte.b	%00111100
+    628  12a5		       3c		      .byte.b	%00111100
+    629  12a6		       3c		      .byte.b	%00111100
+    630  12a7		       a5		      .byte.b	%10100101
+    631  12a8		       a5		      .byte.b	%10100101
+    632  12a9		       7e		      .byte.b	%01111110
+    633  12aa		       72		      .byte.b	%01110010
+    634  12ab		       46		      .byte.b	%01000110
+    635  12ac		       5e		      .byte.b	%01011110
+    636  12ad		       72		      .byte.b	%01110010
+    637  12ae		       4e		      .byte.b	%01001110
+    638  12af		       52		      .byte.b	%01010010
+    639  12b0		       bd		      .byte.b	%10111101
+    640  12b1		       91		      .byte.b	%10010001
+    641  12b2		       10		      .byte.b	%00010000
+    642  12b3		       18		      .byte.b	%00011000
+    643  12b4
+    644  12b4		       00 05	   NPIT       =	5
+    645  12b4							; Colour Black
+    646  12b4				   PIT1
+    647  12b4		       00		      .byte.b	%00000000
+    648  12b5		       00		      .byte.b	%00000000
+    649  12b6		       00		      .byte.b	%00000000
+    650  12b7		       0f		      .byte.b	%00001111
+    651  12b8		       1f		      .byte.b	%00011111
+    652  12b9		       3f		      .byte.b	%00111111
+    653  12ba		       f0		      .byte.b	%11110000
+    654  12bb		       e0		      .byte.b	%11100000
+    655  12bc		       c0		      .byte.b	%11000000
+    656  12bd		       60		      .byte.b	%01100000
+    657  12be		       30		      .byte.b	%00110000
+    658  12bf		       1f		      .byte.b	%00011111
+    659  12c0		       0f		      .byte.b	%00001111
+    660  12c1		       00		      .byte.b	%00000000
+    661  12c2		       00		      .byte.b	%00000000
+    662  12c3		       00		      .byte.b	%00000000
+    663  12c4				   PIT2
+    664  12c4		       00		      .byte.b	%00000000
+    665  12c5		       00		      .byte.b	%00000000
+    666  12c6		       00		      .byte.b	%00000000
+    667  12c7		       f0		      .byte.b	%11110000
+    668  12c8		       f8		      .byte.b	%11111000
+    669  12c9		       fc		      .byte.b	%11111100
+    670  12ca		       1f		      .byte.b	%00011111
+    671  12cb		       0f		      .byte.b	%00001111
+    672  12cc		       07		      .byte.b	%00000111
+    673  12cd		       0e		      .byte.b	%00001110
+    674  12ce		       1c		      .byte.b	%00011100
+    675  12cf		       f8		      .byte.b	%11111000
+    676  12d0		       f0		      .byte.b	%11110000
+    677  12d1		       00		      .byte.b	%00000000
+    678  12d2		       00		      .byte.b	%00000000
+    679  12d3		       00		      .byte.b	%00000000
+    680  12d4
+    681  12d4		       00 07	   NFOOD      =	7
+    682  12d4							; Colour Red
+    683  12d4				   FOOD
+    684  12d4		       00		      .byte.b	%00000000
+    685  12d5		       00		      .byte.b	%00000000
+    686  12d6		       00		      .byte.b	%00000000
+    687  12d7		       00		      .byte.b	%00000000
+    688  12d8		       0c		      .byte.b	%00001100
+    689  12d9		       1e		      .byte.b	%00011110
+    690  12da		       3e		      .byte.b	%00111110
+    691  12db		       7e		      .byte.b	%01111110
+    692  12dc		       fc		      .byte.b	%11111100
+    693  12dd		       f8		      .byte.b	%11111000
+    694  12de		       70		      .byte.b	%01110000
+    695  12df		       00		      .byte.b	%00000000
+    696  12e0		       00		      .byte.b	%00000000
+    697  12e1		       00		      .byte.b	%00000000
+    698  12e2		       00		      .byte.b	%00000000
+    699  12e3		       00		      .byte.b	%00000000
+    700  12e4
+    701  12e4		       00 08	   NBAR       =	8
+    702  12e4				   BAR
+    703  12e4		       fe		      .byte.b	%11111110
+    704  12e5		       fe		      .byte.b	%11111110
+    705  12e6		       fe		      .byte.b	%11111110
+    706  12e7		       fe		      .byte.b	%11111110
+    707  12e8		       fe		      .byte.b	%11111110
+    708  12e9		       fe		      .byte.b	%11111110
+    709  12ea		       fe		      .byte.b	%11111110
+    710  12eb		       fe		      .byte.b	%11111110
+    711  12ec		       fe		      .byte.b	%11111110
+    712  12ed		       fe		      .byte.b	%11111110
+    713  12ee		       fe		      .byte.b	%11111110
+    714  12ef		       fe		      .byte.b	%11111110
+    715  12f0		       fe		      .byte.b	%11111110
+    716  12f1		       fe		      .byte.b	%11111110
+    717  12f2		       fe		      .byte.b	%11111110
+    718  12f3		       fe		      .byte.b	%11111110
+    719  12f3		       00 09	   NBARSHIFT  =	9
+    720  12f4				   BARSHIFT
+    721  12f4		       00 00 00 00*	      ds.b	16,0
+    722  1304
+    723  1304		       00 0a	   NLIFE      =	10
+    724  1304				   CUB
+    725  1304		       00		      .byte.b	%00000000
+    726  1305		       00		      .byte.b	%00000000
+    727  1306		       e7		      .byte.b	%11100111
+    728  1307		       a5		      .byte.b	%10100101
+    729  1308		       ff		      .byte.b	%11111111
+    730  1309		       42		      .byte.b	%01000010
+    731  130a		       a5		      .byte.b	%10100101
+    732  130b		       a5		      .byte.b	%10100101
+    733  130c		       81		      .byte.b	%10000001
+    734  130d		       bd		      .byte.b	%10111101
+    735  130e		       99		      .byte.b	%10011001
+    736  130f		       42		      .byte.b	%01000010
+    737  1310		       3c		      .byte.b	%00111100
+    738  1311		       00		      .byte.b	%00000000
+    739  1312		       00		      .byte.b	%00000000
+    740  1313		       00		      .byte.b	%00000000
+    741  1314
+    742  1314		       00 0b	   NLIFESHIFT =	11
+    743  1314				   CUBSHIFT
+    744  1314		       00 00 00 00*	      ds.b	16,0
+    745  1324
+    746  1324							; First byte indicates the number of
+    747  1324				   tilemapRivUp
+    748  1324		       05 07		      .byte.b	#5,#7

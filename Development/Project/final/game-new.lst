@@ -1,0 +1,1674 @@
+------- FILE game-new.asm LEVEL 1 PASS 2
+      1  1c0f ????						;; CPSC 5999.82 - Retrogames Fall 2022
+      2  1c0f ????						;; Group 9
+      3  1c0f ????						;; Shankar Ganesh, Scott Peters, Naznin Shishir, Abhinav Saxena
+      4  1c0f ????
+      5  1c0f ????						;; SURVIVAL HUNT
+      6  1c0f ????						;; Uses JOYSTICK to move left, right and activate powerup (fire)
+      7  1c0f ????						;; A = ff gives full powerup. Press Fire to activate powerup
+      8  1c0f ????
+      9  1c0f ????
+     10  1c0f ????				      processor	6502
+     11  1c0f ????
+     12  1c0f ????	       1e 00	   SCRNMEM    EQU	$1E00
+     13  1c0f ????	       90 04	   SCRNRAST   EQU	$9004
+     14  1c0f ????	       90 00	   SCRNHPOS   EQU	$9000
+     15  1c0f ????	       90 01	   SCRNVPOS   EQU	$9001
+     16  1c0f ????	       90 02	   SCRNNCOL   EQU	$9002
+     17  1c0f ????	       90 03	   SCRNNROW   EQU	$9003
+     18  1c0f ????	       90 05	   SCRNCHLOC  EQU	$9005
+     19  1c0f ????	       1c 00	   CHRMEM     EQU	$1C00
+     20  1c0f ????	       96 00	   COLOURRAM  EQU	$9600
+     21  1c0f ????	       90 0f	   SCRNCOLR   EQU	$900F
+     22  1c0f ????	       90 0e	   AUXCOLR    EQU	$900E
+     23  1c0f ????	       90 0e	   OSCVOL     EQU	$900E
+     24  1c0f ????	       90 0a	   OSC1FREQ   EQU	$900A
+     25  1c0f ????	       90 0b	   OSC2FREQ   EQU	$900B
+     26  1c0f ????	       90 0c	   OSC3FREQ   EQU	$900C
+     27  1c0f ????	       90 0d	   NOISEFREQ  EQU	$900D
+     28  1c0f ????	       91 11	   JOYPORTA   EQU	$9111
+     29  1c0f ????	       91 20	   JOYPORTB   EQU	$9120
+     30  1c0f ????	       91 22	   DDRB       EQU	$9122
+     31  1c0f ????
+     32  1c0f ????	       00 07	   TIGERPOSX  EQU	$7
+     33  1c0f ????	       1e dc	   TIGERPOSY  EQU	$1edc
+     34  1c0f ????	       96 dc	   TIGERCOLRAM EQU	$96dc
+     35  1c0f ????
+     36  1c0f ????	       00 09	   LIVES      EQU	$9
+     37  1c0f ????	       00 0a	   POWERUP    EQU	$A
+     38  1c0f ????	       00 0b	   FOODACC    EQU	$B
+     39  1c0f ????	       00 0c	   LEVEL      EQU	$C
+     40  1c0f ????	       00 14	   SPEED      EQU	$14
+     41  1c0f ????	       00 15	   DELTASPEED EQU	$15
+     42  1c0f ????
+     43  1c0f ????	       00 16	   NCOLUMNS   EQU	22
+     44  1c0f ????	       00 0d	   NROWS      EQU	13
+     45  1c0f ????
+     46  1c0f ????	       1f 08	   SCREENLIVES EQU	$1f08
+     47  1c0f ????	       97 08	   SCREENLIVESCLR EQU	$9708
+     48  1c0f ????
+     49  1c0f ????	       1f 18	   SCREENPOWER EQU	$1f18
+     50  1c0f ????	       97 18	   SCREENPOWERCOLR EQU	$9718
+     51  1c0f ????
+     52  1c0f ????	       1f 0b	   SCREENRIVER EQU	$1f0b
+     53  1c0f ????	       97 0b	   SCREENRIVERCLR EQU	$970b
+     54  1c0f ????
+     55  1c0f ????	       00 06	   MAXPOWERUPBAR EQU	6
+     56  1c0f ????	       00 18	   TEMP       EQU	$18
+     57  1c0f ????
+     58  1c0f ????	       00 30	   MAX_LEVEL  EQU	#48
+     59  1c0f ????
+     60  1c0f ????	       00 03	   CURRENTROWBLOCK EQU	$3
+     61  1c0f ????
+     62  1c0f ????	       00 0c	   VISIBLEROWS EQU	12
+     63  1c0f ????
+     64  1c0f ????	       00 20	   BRIDGE     EQU	$20
+     65  1c0f ????
+     66  1c0f ????	       00 30	   DELAY      EQU	$30
+     67  1c0f ????
+     68  1c0f ????	       00 31	   CURRENTROWCNT EQU	$31
+     69  1c0f ????						;; TODO: Organize all the vars properly
+     70  1c0f ????						;;;;;; ZP ;;;;;;;;
+     71  1c0f ????						;;;;;; CONSTANTS ;;;;;;
+     72  1c0f ????
+     73  1c0f ????
+     74  1c0f ????
+     75  1c0f ????						;;;;;; COLOURS ;;;;;;
+     76  1c0f ????
+     77  1c0f ????	       00 00	   BLACK      EQU	#0
+     78  1c0f ????	       00 01	   WHITE      EQU	#1
+     79  1c0f ????	       00 02	   RED	      EQU	#2
+     80  1c0f ????	       00 07	   YELLOW     EQU	#7
+     81  1c0f ????	       00 05	   GREEN      EQU	#5
+     82  1c0f ????	       00 06	   BLUE       EQU	#6
+     83  1c0f ????	       00 03	   CYAN       EQU	#3
+     84  1c0f ????	       00 04	   PURPLE     EQU	#4
+     85  1c0f ????	       00 08	   ORANGE     EQU	#8
+     86  1c0f ????	       00 0e	   LIGHTBLUE  EQU	#$0e
+     87  1c0f ????
+     88  1c0f ????	       00 7f	   SCREENCOLOUR EQU	#$7f
+     89  1c0f ????
+     90  1c0f ????
+     91  1c0f ????	       00 20	   RANDOMLO   EQU	$20
+     92  1c0f ????	       00 21	   RANDOMHI   EQU	$21
+     93  1c0f ????
+     94  1c0f ????	       00 a2	   JIFFY      EQU	$A2
+     95  1c0f ????
+     96  1c0f ????	       00 01	   CURRENTBLOCK EQU	$1
+     97  1c0f ????	       00 01	   CURRENTBLOCKLO EQU	$1
+     98  1c0f ????	       00 02	   CURRENTBLOCKHI EQU	$2
+     99  1c0f ????
+    100  1c0f ????	       19 e0	   ZX02SRCDATA EQU	zx0_ini_block+2
+    101  1c0f ????
+    102  1c0f ????				      SEG	CODE
+    103  1001					      ORG	$1001
+    104  1001
+    105  1001
+    106  1001				   BASICSTUB
+    107  1001		       0b 10		      dc.w	.BASICEND
+    108  1003		       57 15		      dc.w	5463
+    109  1005		       9e 34 31 30*	      dc.b	$9e, "4109", $00
+    110  100b				   .BASICEND
+    111  100b		       00 00		      dc.w	$00
+    112  100d
+    113  100d
+    114  100d							;; Rework/fix
+    115  100d							;; TODO -- Data list and loop initialization of vars
+    116  100d				   START
+    117  100d		       d8		      cld		; Clear Decimal
+    118  100e		       a9 7f		      lda	#%01111111	; Setup Joysticks
+    119  1010		       8d 22 91 	      sta	DDRB
+    120  1013		       a9 ff		      lda	#$ff
+    121  1015		       8d 20 91 	      sta	JOYPORTB
+    122  1018
+    123  1018		       a9 68		      lda	#<TITLESCREEN	; ZX02 compression data source init.
+    124  101a		       8d e0 19 	      sta	ZX02SRCDATA
+    125  101d		       a9 1a		      lda	#>TITLESCREEN
+    126  101f		       8d e1 19 	      sta	ZX02SRCDATA+1
+    127  1022
+    128  1022		       20 08 12 	      jsr	showScreen	; Decode screen to screen memory
+    129  1025		       78		      sei		; Disable Interrupts
+    130  1026		       20 df 11 	      jsr	initScreen	; Initialize Screen
+    131  1029		       a9 20		      lda	#$20	; BUG. Maybe because of raster? If yes, will moving to interrupts fix it?
+    132  102b		       85 14		      sta	SPEED	; Speed of scrolling
+    133  102d		       20 bb 12 	      jsr	copyChars	; Copy custom chars
+    134  1030		       a9 15		      lda	#>BLOCKSTART	; Starting Block/map
+    135  1032		       85 02		      sta	CURRENTBLOCKHI
+    136  1034		       a9 13		      lda	#<BLOCKSTART
+    137  1036		       85 01		      sta	CURRENTBLOCKLO
+    138  1038		       20 f1 12 	      jsr	drawBlock	; Draw first row
+    139  103b		       a9 0b		      lda	#11	; Default tiger position
+    140  103d		       85 07		      sta	TIGERPOSX
+    141  103f		       20 28 12 	      jsr	drawTiger
+    142  1042		       a9 03		      lda	#3
+    143  1044		       85 09		      sta	LIVES	; 3 Lives
+    144  1046		       a9 a9		      lda	#$A9
+    145  1048		       85 21		      sta	RANDOMHI
+    146  104a		       a9 30		      lda	#$30
+    147  104c		       85 20		      sta	RANDOMLO	; 16-bit LFSR from Dragonfire
+    148  104e		       a9 00		      lda	#$00
+    149  1050		       85 0a		      sta	POWERUP	; full powerup at start
+    150  1052		       20 6e 13 	      jsr	drawHealthPower	; Draw both lives and powerup bar
+    151  1055		       a9 01		      lda	#$01
+    152  1057		       85 0c		      sta	LEVEL
+    153  1059		       20 6d 12 	      jsr	drawRiver
+    154  105c				   mainloop
+    155  105c		       a2 72		      ldx	#$72	; Pheww.. This took soooo long. Might change it to interrupts
+    156  105e				   .wait
+    157  105e		       ec 04 90 	      cpx	SCRNRAST
+    158  1061		       d0 fb		      bne	.wait
+    159  1063
+    160  1063		       a5 09		      lda	LIVES
+    161  1065		       f0 35		      beq	gameOver
+    162  1067
+    163  1067		       20 a5 12 	      jsr	clearTiger	; Clear the tiger before scrolling
+    164  106a
+    165  106a		       a5 14		      lda	SPEED	; Speed is only > 20 when powerup is active
+    166  106c		       c9 20		      cmp	#$20
+    167  106e		       f0 11		      beq	.nodec
+    168  1070
+    169  1070		       a5 0a		      lda	POWERUP	; If powerup is active, decrement powerup by 1
+    170  1072		       38		      sec
+    171  1073		       e9 01		      sbc	#$01
+    172  1075		       85 0a		      sta	POWERUP
+    173  1077		       b0 08		      bcs	.nodec
+    174  1079
+    175  1079		       a9 00		      lda	#$00
+    176  107b		       85 0a		      sta	POWERUP	; Go back to original speed
+    177  107d		       a9 20		      lda	#$20
+    178  107f		       85 14		      sta	SPEED
+    179  1081
+    180  1081				   .nodec
+    181  1081		       18		      clc
+    182  1082		       a5 30		      lda	DELAY
+    183  1084		       65 01		      adc	$01
+    184  1086		       85 30		      sta	DELAY
+    185  1088		       90 03		      bcc	.scrl
+    186  108a		       20 73 11 	      jsr	checkJoy	; CHeck joystick input. Delay it for a while
+    187  108d
+    188  108d		       a5 15	   .scrl      lda	DELTASPEED	; Check if needed to scroll
+    189  108f		       18		      clc
+    190  1090		       65 14		      adc	SPEED
+    191  1092		       85 15		      sta	DELTASPEED
+    192  1094		       b0 26		      bcs	scrollChar	; Scroll entire char mem by 1 char
+    193  1096
+    194  1096		       20 16 11 	      jsr	moveScreen	; Move the screen by 2 px
+    195  1099				   contMain
+    196  1099		       4c 5c 10 	      jmp	mainloop
+    197  109c
+    198  109c
+    199  109c							;; GAME OVER SCREEN.
+    200  109c				   gameOver   SUBROUTINE
+    201  109c		       58		      cli		; Enable INterrupts
+    202  109d		       a9 f0		      lda	#240	; Restore Screen settings
+    203  109f		       8d 05 90 	      sta	SCRNCHLOC
+    204  10a2		       a9 2e		      lda	#46
+    205  10a4		       8d 03 90 	      sta	SCRNNROW
+    206  10a7		       a9 19		      lda	#25
+    207  10a9		       8d 01 90 	      sta	SCRNVPOS
+    208  10ac
+    209  10ac		       a9 5e		      lda	#<GAMEOVERSCRN
+    210  10ae		       8d e0 19 	      sta	ZX02SRCDATA
+    211  10b1		       a9 1b		      lda	#>GAMEOVERSCRN
+    212  10b3		       8d e1 19 	      sta	ZX02SRCDATA+1
+    213  10b6		       20 08 12 	      jsr	showScreen
+    214  10b9
+    215  10b9		       4c 0d 10 	      jmp	START	; If SPACE is pressed, start new game
+    216  10bc
+    217  10bc
+    218  10bc
+    219  10bc							;;; Scroll the entire char mem by one char (8x16) (16px)
+    220  10bc				   scrollChar SUBROUTINE
+    221  10bc		       a0 58		      ldy	#$58	; Scroll lower half
+    222  10be				   .loop1
+    223  10be		       b9 99 1e 	      lda	$1e9a-1,y
+    224  10c1		       99 af 1e 	      sta	$1eb0-1,y
+    225  10c4		       b9 99 96 	      lda	$969a-1,y
+    226  10c7		       99 af 96 	      sta	$96b0-1,y
+    227  10ca		       88		      dey
+    228  10cb		       d0 f1		      bne	.loop1
+    229  10cd
+    230  10cd		       20 16 11 	      jsr	moveScreen
+    231  10d0
+    232  10d0		       a0 9a		      ldy	#$9a	; Scroll upper half
+    233  10d2				   .loop2
+    234  10d2		       b9 ff 1d 	      lda	SCRNMEM-1,y
+    235  10d5		       99 15 1e 	      sta	$1e16-1,y
+    236  10d8		       b9 ff 95 	      lda	COLOURRAM-1,y
+    237  10db		       99 15 96 	      sta	$9616-1,y
+    238  10de		       88		      dey
+    239  10df		       d0 f1		      bne	.loop2
+    240  10e1
+    241  10e1		       a0 16		      ldy	#NCOLUMNS	; Empty the top row
+    242  10e3		       a9 00		      lda	#NBLANK
+    243  10e5				   .loop3
+    244  10e5		       99 ff 1d 	      sta	SCRNMEM-1,y
+    245  10e8		       88		      dey
+    246  10e9		       d0 fa		      bne	.loop3
+    247  10eb
+    248  10eb
+    249  10eb		       ad 0b 1f 	      lda	SCREENRIVER
+    250  10ee		       85 18		      sta	TEMP
+    251  10f0		       ad 21 1f 	      lda	SCREENRIVER+NCOLUMNS
+    252  10f3		       48		      pha
+    253  10f4		       a0 00		      ldy	#0
+    254  10f6				   .charscrollloop
+    255  10f6		       b9 0c 1f 	      lda	SCREENRIVER+1,y
+    256  10f9		       99 0b 1f 	      sta	SCREENRIVER,y
+    257  10fc		       b9 22 1f 	      lda	SCREENRIVER+1+#NCOLUMNS,y
+    258  10ff		       99 21 1f 	      sta	SCREENRIVER+#NCOLUMNS,y
+    259  1102		       c8		      iny
+    260  1103		       c0 0b		      cpy	#11
+    261  1105		       d0 ef		      bne	.charscrollloop
+    262  1107		       68		      pla
+    263  1108		       99 21 1f 	      sta	SCREENRIVER+#NCOLUMNS,y
+    264  110b		       a5 18		      lda	TEMP
+    265  110d		       99 0b 1f 	      sta	SCREENRIVER,y
+    266  1110
+    267  1110		       20 f1 12 	      jsr	drawBlock	; Draw row of block
+    268  1113							;jsr	drawRow								; Draw a row of the current tilemap
+    269  1113
+    270  1113							;			ldy	#$f2								; Scroll bullet twice as fast
+    271  1113							; .loop4:
+    272  1113							;			lda	$1e00-1,y
+    273  1113							;			cmp	#NBULLET
+    274  1113							;			bne	.next
+    275  1113							;			sta	$1e00-1+#NCOLUMNS,y
+    276  1113							;			lda	#NBLANK
+    277  1113							;			sta	$1e00-1,y
+    278  1113							; .next:
+    279  1113							;			dey
+    280  1113							;			bne	.loop4
+    281  1113
+    282  1113		       4c 99 10 	      jmp	contMain	; Jump to mainloop
+    283  1116
+    284  1116
+    285  1116
+    286  1116							;; DELTASPEED increments by speed and according to it, we calculate the
+    287  1116							;; amount to shift. We first divide the value by
+    288  1116							;; 16 (16 px height) (4 lsr's) which clips the value to 0-15
+    289  1116							;; and then add the min amount * 2 (original pos of screen)
+    290  1116							;; It's basically just linear interpolation
+    291  1116							;; Project/Map values from 0-f to screen original pos-+8 (since screen can only be moved with 8px)
+    292  1116							;; Screen can be moved only by 2px which is why we divide the value by 2 at the end
+    293  1116
+    294  1116							;; My dad helped me a bit with this part.
+    295  1116							;; Just discussion (he doesn't know 6502 or the platform)
+    296  1116				   moveScreen SUBROUTINE
+    297  1116		       a5 15		      lda	DELTASPEED	; Calculate amount to shift the screen
+    298  1118		       4a		      lsr
+    299  1119		       4a		      lsr
+    300  111a		       4a		      lsr
+    301  111b		       4a		      lsr
+    302  111c		       aa		      tax		; Save for later use to shift chars
+    303  111d		       18		      clc
+    304  111e		       69 04		      adc	#$04
+    305  1120		       4a		      lsr
+    306  1121		       8d 01 90 	      sta	$9001
+    307  1124
+    308  1124
+    309  1124		       a9 00		      lda	#$00
+    310  1126		       a0 20		      ldy	#32	; Several ways to do this.
+    311  1128				   .clearChr		; After trying out various methods,
+    312  1128		       99 1f 1c 	      sta	CHRMEM+#NTIGERSHIFT*16-1,y	; I think clearing everything and re-drawing is the best
+    313  112b		       99 6f 1c 	      sta	CHRMEM+#NLIFESHIFT*16-1,y
+    314  112e		       99 4f 1c 	      sta	CHRMEM+#NBARSHIFT*16-1,y
+    315  1131		       99 8f 1c 	      sta	CHRMEM+#NRIVERSHIFT1*16-1,y
+    316  1134		       99 af 1c 	      sta	CHRMEM+#NRIVERSHIFT2*16-1,y
+    317  1137		       99 cf 1c 	      sta	CHRMEM+#NRIVERSHIFT3*16-1,y
+    318  113a		       88		      dey
+    319  113b		       d0 eb		      bne	.clearChr
+    320  113d
+    321  113d		       8a		      txa
+    322  113e		       49 0f		      eor	#$0f	; Get the difference
+    323  1140		       aa		      tax		; We need to shift the char starting at (0xf - shift)
+    324  1141
+    325  1141		       a0 00		      ldy	#00	; Copy the original char again to charmem
+    326  1143				   .copychr		; shifting the appropriate amount
+    327  1143		       b9 23 14 	      lda	TIGER,y
+    328  1146		       9d 20 1c 	      sta	CHRMEM+#NTIGERSHIFT*16,x
+    329  1149		       b9 73 14 	      lda	CUB,y
+    330  114c		       9d 70 1c 	      sta	CHRMEM+#NLIFESHIFT*16,x
+    331  114f		       a9 fe		      lda	#$fe
+    332  1151		       9d 50 1c 	      sta	CHRMEM+#NBARSHIFT*16,x
+    333  1154		       b9 93 14 	      lda	RIVERCONVEXA1,y
+    334  1157		       9d 90 1c 	      sta	CHRMEM+#NRIVERSHIFT1*16,x
+    335  115a		       b9 b3 14 	      lda	RIVERCONVEXB2,y
+    336  115d		       9d b0 1c 	      sta	CHRMEM+#NRIVERSHIFT2*16,x
+    337  1160		       b9 d3 14 	      lda	RIVERSTRAIGHT3,y
+    338  1163		       9d d0 1c 	      sta	CHRMEM+#NRIVERSHIFT3*16,x
+    339  1166		       e8		      inx
+    340  1167		       c8		      iny
+    341  1168		       c0 10		      cpy	#16
+    342  116a		       d0 d7		      bne	.copychr
+    343  116c
+    344  116c		       20 28 12 	      jsr	drawTiger	; Draw the tiger & powerup bar
+    345  116f
+    346  116f
+    347  116f		       60		      rts
+    348  1170
+    349  1170
+    350  1170							;; This is used as a bridge to get back to mainloop
+    351  1170							;; as it is out of bounds for branching (or used to be)
+    352  1170		       4c 5c 10    bridge     jmp	mainloop
+    353  1173
+    354  1173							;; Check user input using joysticks
+    355  1173				   checkJoy   SUBROUTINE
+    356  1173		       a5 15		      lda	DELTASPEED
+    357  1175		       4a		      lsr
+    358  1176		       4a		      lsr
+    359  1177		       4a		      lsr
+    360  1178		       4a		      lsr
+    361  1179		       b0 3b		      bcs	.ret	; Try to slow down the joystick?
+    362  117b
+    363  117b		       ad 11 91 	      lda	JOYPORTA	; Get Joystick A Port
+    364  117e		       29 10		      and	#%00010000	; Check if left
+    365  1180		       d0 0e		      bne	.checkRight
+    366  1182		       a5 07		      lda	TIGERPOSX	; Check bounds
+    367  1184		       f0 30		      beq	.ret
+    368  1186		       a6 07		      ldx	TIGERPOSX	; Check if trees are on the side
+    369  1188		       ca		      dex
+    370  1189		       20 b7 11 	      jsr	checkTreeSides
+    371  118c		       f0 28		      beq	.ret
+    372  118e		       c6 07		      dec	TIGERPOSX
+    373  1190				   .checkRight
+    374  1190		       ad 20 91 	      lda	JOYPORTB	; Check Joyport B
+    375  1193		       29 80		      and	#%10000000	; Check if right
+    376  1195		       d0 10		      bne	.checkPowerup
+    377  1197		       a5 07		      lda	TIGERPOSX
+    378  1199		       c9 15		      cmp	#NCOLUMNS-1	; Check bounds
+    379  119b		       f0 19		      beq	.ret
+    380  119d		       a6 07		      ldx	TIGERPOSX
+    381  119f		       e8		      inx
+    382  11a0		       20 b7 11 	      jsr	checkTreeSides	; Check if trees are on the side
+    383  11a3		       f0 11		      beq	.ret
+    384  11a5		       e6 07		      inc	TIGERPOSX
+    385  11a7				   .checkPowerup
+    386  11a7		       ad 11 91 	      lda	JOYPORTA	; Check if FIRE is pressed for powerup
+    387  11aa		       29 20		      and	#%00100000
+    388  11ac		       d0 08		      bne	.ret
+    389  11ae		       a5 0a		      lda	POWERUP
+    390  11b0		       f0 04		      beq	.ret
+    391  11b2		       a9 40		      lda	#$40	; Double the speed
+    392  11b4		       85 14		      sta	SPEED
+    393  11b6		       60	   .ret       rts
+    394  11b7
+    395  11b7
+    396  11b7							;; Checks for bounds. Realistically, a tiger CAN move
+    397  11b7							;; through trees, etc. But this is a game.
+    398  11b7							;; And in this game, the tiger cannot move through trees.
+    399  11b7							;; Takes one argument in the X register,
+    400  11b7							;; the X position to check
+    401  11b7							;; Sets Zero flag!!!
+    402  11b7							;; Z = 0 means no collision
+    403  11b7				   checkTreeSides SUBROUTINE
+    404  11b7		       bd dc 1e 	      lda	TIGERPOSY,x
+    405  11ba		       c9 01		      cmp	#NTREE
+    406  11bc		       60		      rts
+    407  11bd
+    408  11bd
+    409  11bd				   checkCollision SUBROUTINE
+    410  11bd		       f0 1e		      beq	.ret	; If 0, return (space)
+    411  11bf		       84 18		      sty	TEMP	; Save Y
+    412  11c1		       c9 0f		      cmp	#NOBSTACLES	; Obstacles >= 9
+    413  11c3		       b0 11		      bcs	.rmLife
+    414  11c5
+    415  11c5				   .food
+    416  11c5		       c9 04		      cmp	#NFOOD
+    417  11c7		       d0 0d		      bne	.rmLife
+    418  11c9		       a5 0a		      lda	POWERUP
+    419  11cb		       c9 ff		      cmp	#$ff
+    420  11cd		       f0 0e		      beq	.ret
+    421  11cf		       18		      clc
+    422  11d0		       69 0f		      adc	#$0f	; If food, then add to powerup
+    423  11d2		       85 0a		      sta	POWERUP
+    424  11d4		       8a		      txa
+    425  11d5		       60		      rts
+    426  11d6				   .rmLife
+    427  11d6		       c6 09		      dec	LIVES
+    428  11d8		       20 6e 13 	      jsr	drawHealthPower	; Update health and power bar
+    429  11db		       a4 18		      ldy	TEMP
+    430  11dd		       8a	   .ret       txa
+    431  11de		       60		      rts
+    432  11df
+    433  11df
+    434  11df							;;;;;;;;; INIT SCREEN ;;;;;;;;
+    435  11df				   initScreen SUBROUTINE
+    436  11df		       a0 06		      ldy	#$06
+    437  11e1				   .loop
+    438  11e1		       b9 01 12 	      lda	.screenSettings-1,y	; Set screen settings in a loop
+    439  11e4		       99 ff 8f 	      sta	SCRNHPOS-1,y
+    440  11e7		       88		      dey
+    441  11e8		       d0 f7		      bne	.loop
+    442  11ea
+    443  11ea		       a9 7f		      lda	#SCREENCOLOUR
+    444  11ec		       8d 0f 90 	      sta	SCRNCOLR
+    445  11ef		       a9 10		      lda	#%00010000	; Set auxiliary colour for river
+    446  11f1		       8d 0e 90 	      sta	OSCVOL
+    447  11f4		       a0 ff		      ldy	#$ff
+    448  11f6				   .clrloop
+    449  11f6		       a9 00		      lda	#$00
+    450  11f8		       99 ff 1d 	      sta	SCRNMEM-1,y	; Clear screen memory
+    451  11fb		       99 fe 1e 	      sta	SCRNMEM+#$ff-1,y
+    452  11fe		       88		      dey
+    453  11ff		       d0 f5		      bne	.clrloop
+    454  1201		       60		      rts
+    455  1202
+    456  1202				   .screenSettings
+    457  1202		       04 02 96 1d*	      .byte.b	$04, $02, $96, $1d, $0, $ff
+    458  1208
+    459  1208
+    460  1208
+    461  1208							;;;;;;;;;; ZX02 Compressed SCREEN ;;;;;;;;
+    462  1208				   showScreen SUBROUTINE		; Show a ZX02 decompressed screen
+    463  1208		       a9 08		      lda	#$08
+    464  120a		       8d 0f 90 	      sta	SCRNCOLR
+    465  120d		       a9 02		      lda	#$02
+    466  120f		       a0 00		      ldy	#$00
+    467  1211				   .loop
+    468  1211		       99 00 96 	      sta	COLOURRAM,y
+    469  1214		       99 ff 96 	      sta	COLOURRAM+#$ff,y
+    470  1217		       c8		      iny
+    471  1218		       d0 f7		      bne	.loop
+    472  121a
+    473  121a		       20 e5 19 	      jsr	full_decomp
+    474  121d		       20 95 13 	      jsr	MEGITSUNE	; Play megitsune music
+    475  1220				   .wait
+    476  1220		       ad 11 91 	      lda	JOYPORTA	; Wait for start (fire)
+    477  1223		       29 20		      and	#%00100000
+    478  1225		       d0 f9		      bne	.wait
+    479  1227		       60		      rts
+    480  1228
+    481  1228
+    482  1228							;; Draw the tiger
+    483  1228				   drawTiger  SUBROUTINE
+    484  1228		       a2 02		      ldx	#NTIGERSHIFT	; Check collision and draw tiger
+    485  122a		       a4 07		      ldy	TIGERPOSX
+    486  122c		       b9 dc 1e 	      lda	TIGERPOSY,y
+    487  122f		       20 bd 11 	      jsr	checkCollision
+    488  1232		       99 dc 1e 	      sta	TIGERPOSY,y
+    489  1235		       a2 03		      ldx	#NTIGER
+    490  1237		       b9 f2 1e 	      lda	TIGERPOSY+#NCOLUMNS,y
+    491  123a		       20 bd 11 	      jsr	checkCollision
+    492  123d		       99 f2 1e 	      sta	TIGERPOSY+#NCOLUMNS,y
+    493  1240
+    494  1240		       a9 00		      lda	#BLACK
+    495  1242		       99 dc 96 	      sta	TIGERCOLRAM,y
+    496  1245		       99 f2 96 	      sta	TIGERCOLRAM+#NCOLUMNS,y
+    497  1248
+    498  1248		       a5 0a	   .cont      lda	POWERUP	; Calculate number of bars to draw for powerup
+    499  124a		       4a		      lsr
+    500  124b		       4a		      lsr
+    501  124c		       4a		      lsr
+    502  124d		       4a		      lsr
+    503  124e		       4a		      lsr
+    504  124f		       38		      sec
+    505  1250		       e9 01		      sbc	#$01
+    506  1252		       30 18		      bmi	.ret
+    507  1254		       a8		      tay
+    508  1255		       f0 15		      beq	.ret
+    509  1257
+    510  1257				   .barloop
+    511  1257		       a9 05		      lda	#NBARSHIFT	; Draw bars
+    512  1259		       99 17 1f 	      sta	SCREENPOWER-1,y
+    513  125c		       a9 06		      lda	#NBAR
+    514  125e		       99 2d 1f 	      sta	SCREENPOWER-1+#NCOLUMNS,y
+    515  1261		       a9 02		      lda	#RED
+    516  1263		       99 17 97 	      sta	SCREENPOWERCOLR-1,y
+    517  1266		       99 2d 97 	      sta	SCREENPOWERCOLR-1+#NCOLUMNS,y
+    518  1269		       88		      dey
+    519  126a		       d0 eb		      bne	.barloop
+    520  126c		       60	   .ret       rts
+    521  126d
+    522  126d
+    523  126d				   drawRiver  SUBROUTINE
+    524  126d		       a9 10		      lda	#%00010000
+    525  126f		       8d 0e 90 	      sta	OSCVOL
+    526  1272		       a2 04		      ldx	#4
+    527  1274		       a0 00		      ldy	#$0
+    528  1276
+    529  1276				   .loop
+    530  1276		       a9 09		      lda	#NRIVERSHIFT1
+    531  1278		       99 0b 1f 	      sta	SCREENRIVER,y
+    532  127b		       a9 0a		      lda	#NRIVERCONVEXA1
+    533  127d		       99 21 1f 	      sta	SCREENRIVER+#NCOLUMNS,y
+    534  1280		       c8		      iny
+    535  1281		       a9 0b		      lda	#NRIVERSHIFT2
+    536  1283		       99 0b 1f 	      sta	SCREENRIVER,y
+    537  1286		       a9 0c		      lda	#NRIVERCONVEXB2
+    538  1288		       99 21 1f 	      sta	SCREENRIVER+#NCOLUMNS,y
+    539  128b		       c8		      iny
+    540  128c		       a9 0d		      lda	#NRIVERSHIFT3
+    541  128e		       99 0b 1f 	      sta	SCREENRIVER,y
+    542  1291		       a9 0e		      lda	#NRIVERSTRAIGHT3
+    543  1293		       99 21 1f 	      sta	SCREENRIVER+#NCOLUMNS,y
+    544  1296
+    545  1296		       ca		      dex
+    546  1297		       d0 dd		      bne	.loop
+    547  1299
+    548  1299		       a0 0c		      ldy	#12
+    549  129b		       a9 06		      lda	#BLUE
+    550  129d				   .colrloop
+    551  129d		       99 0a 97 	      sta	SCREENRIVERCLR-1,y
+    552  12a0		       99 20 97 	      sta	SCREENRIVERCLR-1+#NCOLUMNS,y
+    553  12a3		       88		      dey
+    554  12a4		       60		      rts
+    555  12a5
+    556  12a5
+    557  12a5							;; Clear the tiger and powerup bars
+    558  12a5				   clearTiger SUBROUTINE
+    559  12a5		       a9 00		      lda	#NBLANK
+    560  12a7		       a4 07		      ldy	TIGERPOSX
+    561  12a9		       99 dc 1e 	      sta	TIGERPOSY,y
+    562  12ac		       99 f2 1e 	      sta	TIGERPOSY+#NCOLUMNS,y
+    563  12af
+    564  12af		       a0 06		      ldy	#MAXPOWERUPBAR
+    565  12b1				   .barloop
+    566  12b1		       99 17 1f 	      sta	SCREENPOWER-1,y
+    567  12b4		       99 2d 1f 	      sta	SCREENPOWER-1+#NCOLUMNS,y
+    568  12b7		       88		      dey
+    569  12b8		       d0 f7		      bne	.barloop
+    570  12ba		       60		      rts
+    571  12bb
+    572  12bb
+    573  12bb							; Copy characters to
+    574  12bb				   copyChars  SUBROUTINE
+    575  12bb		       a0 f1		      ldy	#NBITMAPS*16+1
+    576  12bd				   .copyloop
+    577  12bd		       b9 f2 13 	      lda	BITMAPS-1,y
+    578  12c0		       99 ff 1b 	      sta	CHRMEM-1,y
+    579  12c3		       88		      dey
+    580  12c4		       d0 f7		      bne	.copyloop
+    581  12c6
+    582  12c6		       a0 30		      ldy	#16*3
+    583  12c8				   .copyloop2
+    584  12c8		       b9 e2 14 	      lda	BULLETUP-1,y
+    585  12cb		       99 ef 1c 	      sta	CHRMEM+16*#NBITMAPS-1,y
+    586  12ce		       88		      dey
+    587  12cf		       d0 f7		      bne	.copyloop2
+    588  12d1		       60		      rts
+    589  12d2
+    590  12d2
+    591  12d2							;;;;;;;;;;;;;; AUDIO ;;;;;;;;;;;;;;;
+    592  12d2							; Gunshot Sound
+    593  12d2				   SHOOTSOUND SUBROUTINE
+    594  12d2		       a9 0f		      lda	#$0f
+    595  12d4		       8d 0e 90 	      sta	OSCVOL
+    596  12d7		       a0 ff		      ldy	#$ff
+    597  12d9				   .shootloop
+    598  12d9		       8c 0c 90 	      sty	OSC3FREQ
+    599  12dc		       8c 0d 90 	      sty	NOISEFREQ
+    600  12df		       a2 ff		      ldx	#$ff
+    601  12e1				   .shootwaste
+    602  12e1		       ca		      dex
+    603  12e2		       d0 fd		      bne	.shootwaste
+    604  12e4		       8e 0c 90 	      stx	OSC3FREQ
+    605  12e7		       8e 0d 90 	      stx	NOISEFREQ
+    606  12ea		       e8		      inx
+    607  12eb		       88		      dey
+    608  12ec		       c0 80		      cpy	#128
+    609  12ee		       d0 e9		      bne	.shootloop
+    610  12f0		       60		      rts
+    611  12f1
+    612  12f1
+    613  12f1							; Cycle through blocks
+    614  12f1							; Starting from BLOCKSTART TO BLOCKSEND
+    615  12f1				   drawBlock  SUBROUTINE
+    616  12f1		       20 16 13 	      jsr	drawRow
+    617  12f4
+    618  12f4		       a5 01		      lda	CURRENTBLOCKLO
+    619  12f6		       c9 2d		      cmp	#<BLOCKSEND
+    620  12f8		       d0 0e		      bne	.cont
+    621  12fa		       a5 02		      lda	CURRENTBLOCKHI
+    622  12fc		       c9 19		      cmp	#>BLOCKSEND
+    623  12fe		       d0 08		      bne	.cont
+    624  1300		       a9 13		      lda	#<BLOCKSTART
+    625  1302		       85 01		      sta	CURRENTBLOCKLO
+    626  1304		       a9 15		      lda	#>BLOCKSTART
+    627  1306		       85 02		      sta	CURRENTBLOCKHI
+    628  1308				   .cont
+    629  1308		       18		      clc
+    630  1309		       a5 01		      lda	CURRENTBLOCKLO
+    631  130b		       69 03		      adc	#$03
+    632  130d		       85 01		      sta	CURRENTBLOCKLO
+    633  130f		       a5 02		      lda	CURRENTBLOCKHI
+    634  1311		       69 00		      adc	#$00
+    635  1313		       85 02		      sta	CURRENTBLOCKHI
+    636  1315
+    637  1315		       60		      rts
+    638  1316
+    639  1316
+    640  1316
+    641  1316							;; Draw a row of trees from block
+    642  1316							;; SUPER SUPER Ineffecient but it works and I ain't touching this
+    643  1316							;; It's 8, 8, 6 bytes so kinda weird to loop
+    644  1316							;; I did try it but the screen was messed up for some reason. eh..
+    645  1316				   drawRow    SUBROUTINE
+    646  1316		       a0 00		      ldy	#$00
+    647  1318		       a2 00		      ldx	#$00
+    648  131a
+    649  131a		       a9 08		      lda	#8	; Draw first 8 bytes
+    650  131c		       85 18		      sta	TEMP
+    651  131e		       b1 01		      lda	(CURRENTBLOCK),y
+    652  1320		       18		      clc
+    653  1321				   .loop
+    654  1321		       2a		      rol
+    655  1322		       48		      pha
+    656  1323		       90 0a		      bcc	.next
+    657  1325
+    658  1325		       a9 01		      lda	#NTREE
+    659  1327		       9d 00 1e 	      sta	SCRNMEM,x
+    660  132a		       a9 05		      lda	#GREEN
+    661  132c		       9d 00 96 	      sta	COLOURRAM,x
+    662  132f
+    663  132f		       68	   .next      pla
+    664  1330		       e8		      inx
+    665  1331		       c6 18		      dec	TEMP
+    666  1333		       d0 ec		      bne	.loop
+    667  1335
+    668  1335		       a9 08		      lda	#8	; Draw seond 8 bytes
+    669  1337		       85 18		      sta	TEMP
+    670  1339		       c8		      iny
+    671  133a		       b1 01		      lda	(CURRENTBLOCK),y
+    672  133c		       18		      clc
+    673  133d				   .loop1
+    674  133d		       2a		      rol
+    675  133e		       48		      pha
+    676  133f		       90 0a		      bcc	.next1
+    677  1341
+    678  1341		       a9 01		      lda	#NTREE
+    679  1343		       9d 00 1e 	      sta	SCRNMEM,x
+    680  1346		       a9 05		      lda	#GREEN
+    681  1348		       9d 00 96 	      sta	COLOURRAM,x
+    682  134b
+    683  134b		       68	   .next1     pla
+    684  134c		       e8		      inx
+    685  134d		       c6 18		      dec	TEMP
+    686  134f		       d0 ec		      bne	.loop1
+    687  1351
+    688  1351		       a9 06		      lda	#6	; Draw 6 bytes as max is 22 columns
+    689  1353		       85 18		      sta	TEMP
+    690  1355		       c8		      iny
+    691  1356		       b1 01		      lda	(CURRENTBLOCK),y
+    692  1358		       18		      clc
+    693  1359				   .loop2
+    694  1359		       2a		      rol
+    695  135a		       48		      pha
+    696  135b		       90 0a		      bcc	.next2
+    697  135d
+    698  135d		       a9 01		      lda	#NTREE
+    699  135f		       9d 00 1e 	      sta	SCRNMEM,x
+    700  1362		       a9 05		      lda	#GREEN
+    701  1364		       99 00 96 	      sta	COLOURRAM,y
+    702  1367
+    703  1367		       68	   .next2     pla
+    704  1368		       e8		      inx
+    705  1369		       c6 18		      dec	TEMP
+    706  136b		       d0 ec		      bne	.loop2
+    707  136d
+    708  136d				   .ret
+    709  136d		       60		      rts
+    710  136e
+    711  136e
+    712  136e							; Draw lives
+    713  136e				   drawHealthPower SUBROUTINE
+    714  136e		       a0 03		      ldy	#3
+    715  1370				   .loopcl
+    716  1370		       a9 00		      lda	#NBLANK
+    717  1372		       99 07 1f 	      sta	SCREENLIVES-1,y
+    718  1375		       99 1d 1f 	      sta	SCREENLIVES+NCOLUMNS-1,y
+    719  1378		       88		      dey
+    720  1379		       d0 f5		      bne	.loopcl
+    721  137b
+    722  137b		       a4 09		      ldy	LIVES
+    723  137d		       f0 15		      beq	.ret
+    724  137f				   .loop
+    725  137f		       a9 07		      lda	#NLIFESHIFT
+    726  1381		       99 07 1f 	      sta	SCREENLIVES-1,y
+    727  1384
+    728  1384		       a9 08		      lda	#NLIFE
+    729  1386		       99 1d 1f 	      sta	SCREENLIVES+#NCOLUMNS-1,y
+    730  1389
+    731  1389		       a9 00		      lda	#BLACK
+    732  138b		       99 07 97 	      sta	SCREENLIVESCLR-1,y
+    733  138e		       99 1d 97 	      sta	SCREENLIVESCLR+#NCOLUMNS-1,y
+    734  1391		       88		      dey
+    735  1392		       d0 eb		      bne	.loop
+    736  1394
+    737  1394		       60	   .ret       rts
+    738  1395
+    739  1395							; megistune (from assignment 1)
+    740  1395				   MEGITSUNE  SUBROUTINE
+    741  1395		       a9 0f		      lda	#$0f
+    742  1397		       8d 0e 90 	      sta	OSCVOL
+    743  139a		       a0 00		      ldy	#00
+    744  139c		       a2 02		      ldx	#02
+    745  139e
+    746  139e				   .LOADNOTE
+    747  139e		       b9 2d 19 	      lda	RIFF,y
+    748  13a1		       f0 31		      beq	.CHECKCNT
+    749  13a3
+    750  13a3		       8d 0a 90 	      sta	OSC1FREQ
+    751  13a6		       c8		      iny
+    752  13a7		       b9 2d 19 	      lda	RIFF,y
+    753  13aa		       8d 0b 90 	      sta	OSC2FREQ
+    754  13ad		       c8		      iny
+    755  13ae		       b9 2d 19 	      lda	RIFF,y
+    756  13b1		       8d 0c 90 	      sta	OSC3FREQ
+    757  13b4		       c8		      iny
+    758  13b5
+    759  13b5		       a9 00		      lda	#00
+    760  13b7		       85 a2		      sta	JIFFY
+    761  13b9				   .CHECKTIME
+    762  13b9		       a5 a2		      lda	JIFFY
+    763  13bb		       d9 2d 19 	      cmp	RIFF,y
+    764  13be		       d0 f9		      bne	.CHECKTIME
+    765  13c0
+    766  13c0		       a9 00		      lda	#00
+    767  13c2		       8d 0a 90 	      sta	OSC1FREQ
+    768  13c5		       8d 0b 90 	      sta	OSC2FREQ
+    769  13c8		       8d 0c 90 	      sta	OSC3FREQ
+    770  13cb		       85 a2		      sta	JIFFY
+    771  13cd							; The low sqr osc doesn't work for some reason without a delay
+    772  13cd							; Spent days figuring this out.
+    773  13cd				   .CHECKJIFFY
+    774  13cd		       a5 a2		      lda	JIFFY
+    775  13cf		       f0 fc		      beq	.CHECKJIFFY
+    776  13d1		       c8		      iny
+    777  13d2		       d0 ca		      bne	.LOADNOTE
+    778  13d4				   .CHECKCNT
+    779  13d4		       ca		      dex
+    780  13d5		       8a		      txa
+    781  13d6		       f0 05		      beq	.RETURN
+    782  13d8		       a0 00		      ldy	#00
+    783  13da		       4c 9e 13 	      jmp	.LOADNOTE
+    784  13dd
+    785  13dd		       a9 00	   .RETURN    lda	#00
+    786  13df		       8d 0e 90 	      sta	OSCVOL
+    787  13e2		       60		      rts
+    788  13e3
+    789  13e3
+    790  13e3							;;;; DRAGONFIRE!!!
+    791  13e3							;;;; 16-bit LFSR for PCG
+    792  13e3				   genRandom  SUBROUTINE		; 16-bit rnadom LFSR
+    793  13e3		       a5 20		      lda	RANDOMLO
+    794  13e5		       6a		      ror
+    795  13e6		       6a		      ror
+    796  13e7		       6a		      ror
+    797  13e8		       45 21		      eor	RANDOMHI
+    798  13ea		       0a		      asl
+    799  13eb		       0a		      asl
+    800  13ec		       26 20		      rol	RANDOMLO
+    801  13ee		       26 21		      rol	RANDOMHI
+    802  13f0		       a5 20		      lda	RANDOMLO
+    803  13f2		       60		      rts
+    804  13f3
+    805  13f3		       00 0f	   NBITMAPS   =	15
+    806  13f3				   BITMAPS
+    807  13f3
+    808  13f3		       00 00	   NBLANK     =	0
+    809  13f3				   BLANK
+    810  13f3		       00 00 00 00*	      ds.b	16,0
+    811  1403
+    812  1403
+    813  1403		       00 01	   NTREE      =	1
+    814  1403							; Green top
+    815  1403				   TREETOP
+    816  1403		       18		      .byte.b	%00011000
+    817  1404		       3c		      .byte.b	%00111100
+    818  1405		       3c		      .byte.b	%00111100
+    819  1406		       7e		      .byte.b	%01111110
+    820  1407		       7e		      .byte.b	%01111110
+    821  1408		       7e		      .byte.b	%01111110
+    822  1409		       ff		      .byte.b	%11111111
+    823  140a		       ff		      .byte.b	%11111111
+    824  140b		       ff		      .byte.b	%11111111
+    825  140c		       ff		      .byte.b	%11111111
+    826  140d		       7e		      .byte.b	%01111110
+    827  140e		       3c		      .byte.b	%00111100
+    828  140f		       3c		      .byte.b	%00111100
+    829  1410		       3c		      .byte.b	%00111100
+    830  1411		       3c		      .byte.b	%00111100
+    831  1412		       7e		      .byte.b	%01111110
+    832  1413
+    833  1413		       00 02	   NTIGERSHIFT =	2
+    834  1413				   TIGERSHIFT
+    835  1413		       00 00 00 00*	      ds.b	16,0
+    836  1413		       00 03	   NTIGER     =	3
+    837  1423							; Black Colour
+    838  1423				   TIGER
+    839  1423		       3c		      .byte.b	%00111100
+    840  1424		       3c		      .byte.b	%00111100
+    841  1425		       3c		      .byte.b	%00111100
+    842  1426		       a5		      .byte.b	%10100101
+    843  1427		       a5		      .byte.b	%10100101
+    844  1428		       7e		      .byte.b	%01111110
+    845  1429		       72		      .byte.b	%01110010
+    846  142a		       46		      .byte.b	%01000110
+    847  142b		       5e		      .byte.b	%01011110
+    848  142c		       72		      .byte.b	%01110010
+    849  142d		       4e		      .byte.b	%01001110
+    850  142e		       52		      .byte.b	%01010010
+    851  142f		       bd		      .byte.b	%10111101
+    852  1430		       91		      .byte.b	%10010001
+    853  1431		       10		      .byte.b	%00010000
+    854  1432		       18		      .byte.b	%00011000
+    855  1432		       00 04	   NFOOD      =	4
+    856  1433							; Colour Red
+    857  1433				   FOOD
+    858  1433		       00		      .byte.b	%00000000
+    859  1434		       00		      .byte.b	%00000000
+    860  1435		       00		      .byte.b	%00000000
+    861  1436		       00		      .byte.b	%00000000
+    862  1437		       0c		      .byte.b	%00001100
+    863  1438		       1e		      .byte.b	%00011110
+    864  1439		       3e		      .byte.b	%00111110
+    865  143a		       7e		      .byte.b	%01111110
+    866  143b		       fc		      .byte.b	%11111100
+    867  143c		       f8		      .byte.b	%11111000
+    868  143d		       70		      .byte.b	%01110000
+    869  143e		       00		      .byte.b	%00000000
+    870  143f		       00		      .byte.b	%00000000
+    871  1440		       00		      .byte.b	%00000000
+    872  1441		       00		      .byte.b	%00000000
+    873  1442		       00		      .byte.b	%00000000
+    874  1443
+    875  1443		       00 05	   NBARSHIFT  =	5
+    876  1443				   BARSHIFT
+    877  1443		       00 00 00 00*	      ds.b	16,0
+    878  1453
+    879  1453		       00 06	   NBAR       =	6
+    880  1453				   BAR
+    881  1453		       fe		      .byte.b	%11111110
+    882  1454		       fe		      .byte.b	%11111110
+    883  1455		       fe		      .byte.b	%11111110
+    884  1456		       fe		      .byte.b	%11111110
+    885  1457		       fe		      .byte.b	%11111110
+    886  1458		       fe		      .byte.b	%11111110
+    887  1459		       fe		      .byte.b	%11111110
+    888  145a		       fe		      .byte.b	%11111110
+    889  145b		       fe		      .byte.b	%11111110
+    890  145c		       fe		      .byte.b	%11111110
+    891  145d		       fe		      .byte.b	%11111110
+    892  145e		       fe		      .byte.b	%11111110
+    893  145f		       fe		      .byte.b	%11111110
+    894  1460		       fe		      .byte.b	%11111110
+    895  1461		       fe		      .byte.b	%11111110
+    896  1462		       fe		      .byte.b	%11111110
+    897  1463
+    898  1463		       00 07	   NLIFESHIFT =	7
+    899  1463				   CUBSHIFT
+    900  1463		       00 00 00 00*	      ds.b	16,0
+    901  1473
+    902  1473		       00 08	   NLIFE      =	8
+    903  1473				   CUB
+    904  1473		       00		      .byte.b	%00000000
+    905  1474		       00		      .byte.b	%00000000
+    906  1475		       e7		      .byte.b	%11100111
+    907  1476		       a5		      .byte.b	%10100101
+    908  1477		       ff		      .byte.b	%11111111
+    909  1478		       42		      .byte.b	%01000010
+    910  1479		       a5		      .byte.b	%10100101
+    911  147a		       a5		      .byte.b	%10100101
+    912  147b		       81		      .byte.b	%10000001
+    913  147c		       bd		      .byte.b	%10111101
+    914  147d		       99		      .byte.b	%10011001
+    915  147e		       42		      .byte.b	%01000010
+    916  147f		       3c		      .byte.b	%00111100
+    917  1480		       00		      .byte.b	%00000000
+    918  1481		       00		      .byte.b	%00000000
+    919  1482		       00		      .byte.b	%00000000
+    920  1483
+    921  1483		       00 09	   NRIVERSHIFT1 =	9
+    922  1483				   RIVERSHIFT1
+    923  1483		       00 00 00 00*	      ds.b	16,0
+    924  1493
+    925  1493		       00 0a	   NRIVERCONVEXA1 =	10
+    926  1493				   RIVERCONVEXA1
+    927  1493		       03		      .byte.b	%00000011
+    928  1494		       0e		      .byte.b	%00001110
+    929  1495		       3a		      .byte.b	%00111010
+    930  1496		       ea		      .byte.b	%11101010
+    931  1497		       aa		      .byte.b	%10101010
+    932  1498		       aa		      .byte.b	%10101010
+    933  1499		       aa		      .byte.b	%10101010
+    934  149a		       aa		      .byte.b	%10101010
+    935  149b		       aa		      .byte.b	%10101010
+    936  149c		       aa		      .byte.b	%10101010
+    937  149d		       aa		      .byte.b	%10101010
+    938  149e		       aa		      .byte.b	%10101010
+    939  149f		       ea		      .byte.b	%11101010
+    940  14a0		       3a		      .byte.b	%00111010
+    941  14a1		       0e		      .byte.b	%00001110
+    942  14a2		       03		      .byte.b	%00000011
+    943  14a3
+    944  14a3		       00 0b	   NRIVERSHIFT2 =	11
+    945  14a3				   RIVERSHIFT2
+    946  14a3		       00 00 00 00*	      ds.b	16,0
+    947  14b3
+    948  14b3		       00 0c	   NRIVERCONVEXB2 =	12
+    949  14b3				   RIVERCONVEXB2
+    950  14b3		       c0		      .byte.b	%11000000
+    951  14b4		       b0		      .byte.b	%10110000
+    952  14b5		       ac		      .byte.b	%10101100
+    953  14b6		       ab		      .byte.b	%10101011
+    954  14b7		       aa		      .byte.b	%10101010
+    955  14b8		       aa		      .byte.b	%10101010
+    956  14b9		       aa		      .byte.b	%10101010
+    957  14ba		       aa		      .byte.b	%10101010
+    958  14bb		       aa		      .byte.b	%10101010
+    959  14bc		       aa		      .byte.b	%10101010
+    960  14bd		       aa		      .byte.b	%10101010
+    961  14be		       aa		      .byte.b	%10101010
+    962  14bf		       ab		      .byte.b	%10101011
+    963  14c0		       ac		      .byte.b	%10101100
+    964  14c1		       b0		      .byte.b	%10110000
+    965  14c2		       c0		      .byte.b	%11000000
+    966  14c3
+    967  14c3		       00 0d	   NRIVERSHIFT3 =	13
+    968  14c3				   RIVERSHIFT3
+    969  14c3		       00 00 00 00*	      ds.b	16,0
+    970  14d3
+    971  14d3		       00 0e	   NRIVERSTRAIGHT3 =	14
+    972  14d3				   RIVERSTRAIGHT3
+    973  14d3		       00		      .byte.b	%00000000
+    974  14d4		       00		      .byte.b	%00000000
+    975  14d5		       00		      .byte.b	%00000000
+    976  14d6		       ff		      .byte.b	%11111111
+    977  14d7		       aa		      .byte.b	%10101010
+    978  14d8		       aa		      .byte.b	%10101010
+    979  14d9		       aa		      .byte.b	%10101010
+    980  14da		       aa		      .byte.b	%10101010
+    981  14db		       aa		      .byte.b	%10101010
+    982  14dc		       aa		      .byte.b	%10101010
+    983  14dd		       aa		      .byte.b	%10101010
+    984  14de		       ff		      .byte.b	%11111111
+    985  14df		       00		      .byte.b	%00000000
+    986  14e0		       00		      .byte.b	%00000000
+    987  14e1		       00		      .byte.b	%00000000
+    988  14e2		       00		      .byte.b	%00000000
+    989  14e3
+    990  14e3
+    991  14e3		       00 0f	   NOBSTACLES =	15
+    992  14e3		       00 0f	   NBULLET    =	15
+    993  14e3							; Black
+    994  14e3				   BULLETUP
+    995  14e3		       18		      .byte.b	%00011000
+    996  14e4		       18		      .byte.b	%00011000
+    997  14e5		       18		      .byte.b	%00011000
+    998  14e6		       18		      .byte.b	%00011000
+    999  14e7		       18		      .byte.b	%00011000
+   1000  14e8		       18		      .byte.b	%00011000
+   1001  14e9		       18		      .byte.b	%00011000
+   1002  14ea		       18		      .byte.b	%00011000
+   1003  14eb		       18		      .byte.b	%00011000
+   1004  14ec		       18		      .byte.b	%00011000
+   1005  14ed		       18		      .byte.b	%00011000
+   1006  14ee		       00		      .byte.b	%00000000
+   1007  14ef		       00		      .byte.b	%00000000
+   1008  14f0		       00		      .byte.b	%00000000
+   1009  14f1		       00		      .byte.b	%00000000
+   1010  14f2		       00		      .byte.b	%00000000
+   1011  14f2		       00 10	   NPIT       =	16
+   1012  14f3							;Colour Black
+   1013  14f3				   PIT
+   1014  14f3		       00		      .byte.b	%00000000
+   1015  14f4		       00		      .byte.b	%00000000
+   1016  14f5		       00		      .byte.b	%00000000
+   1017  14f6		       00		      .byte.b	%00000000
+   1018  14f7		       00		      .byte.b	%00000000
+   1019  14f8		       3c		      .byte.b	%00111100
+   1020  14f9		       42		      .byte.b	%01000010
+   1021  14fa		       b1		      .byte.b	%10110001
+   1022  14fb		       b9		      .byte.b	%10111001
+   1023  14fc		       42		      .byte.b	%01000010
+   1024  14fd		       3c		      .byte.b	%00111100
+   1025  14fe		       00		      .byte.b	%00000000
+   1026  14ff		       00		      .byte.b	%00000000
+   1027  1500		       00		      .byte.b	%00000000
+   1028  1501		       00		      .byte.b	%00000000
+   1029  1502		       00		      .byte.b	%00000000
+   1030  1502		       00 11	   NHUNTERLEFT =	17
+   1031  1503				   HUNTERLEFT
+   1032  1503		       70		      .byte.b	%01110000
+   1033  1504		       70		      .byte.b	%01110000
+   1034  1505		       70		      .byte.b	%01110000
+   1035  1506		       20		      .byte.b	%00100000
+   1036  1507		       f8		      .byte.b	%11111000
+   1037  1508		       f8		      .byte.b	%11111000
+   1038  1509		       f8		      .byte.b	%11111000
+   1039  150a		       ff		      .byte.b	%11111111
+   1040  150b		       7c		      .byte.b	%01111100
+   1041  150c		       70		      .byte.b	%01110000
+   1042  150d		       50		      .byte.b	%01010000
+   1043  150e		       50		      .byte.b	%01010000
+   1044  150f		       50		      .byte.b	%01010000
+   1045  1510		       58		      .byte.b	%01011000
+   1046  1511		       60		      .byte.b	%01100000
+   1047  1512		       00		      .byte.b	%00000000
+   1048  1513
+   1049  1513
+   1050  1513
+   1051  1513							; PATH Tiles or BLOCK tiles. idk call 'em what you want to.
+   1052  1513							; These are used to cycle through the
+   1053  1513				   BLOCKSTART
+   1054  1513				   BLOCK_START
+   1055  1513		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1056  1516		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1057  1519		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1058  151c		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1059  151f		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1060  1522		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1061  1525		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1062  1528		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1063  152b		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1064  152e		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1065  1531		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1066  1534		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1067  1537
+   1068  1537							; Basic easy block
+   1069  1537				   BLOCKEASY
+   1070  1537		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1071  153a		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1072  153d		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1073  1540		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1074  1543		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1075  1546		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1076  1549		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1077  154c		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1078  154f		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1079  1552		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1080  1555
+   1081  1555							; Gets a bit smaller in the middle
+   1082  1555				   BLOCKEASY2
+   1083  1555		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1084  1558		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1085  155b		       fc 00 7c 	      .byte.b	#%11111100, #%00000000, #%01111100
+   1086  155e		       fc 00 7c 	      .byte.b	#%11111100, #%00000000, #%01111100
+   1087  1561		       fe 00 fc 	      .byte.b	#%11111110, #%00000000, #%11111100
+   1088  1564		       fc 00 7c 	      .byte.b	#%11111100, #%00000000, #%01111100
+   1089  1567		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1090  156a		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1091  156d		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1092  1570		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1093  1573
+   1094  1573							; Right side gets smaller
+   1095  1573				   BLOCKEZS
+   1096  1573		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1097  1576		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1098  1579		       fc 00 3c 	      .byte.b	#%11111100, #%00000000, #%00111100
+   1099  157c		       fe 00 3c 	      .byte.b	#%11111110, #%00000000, #%00111100
+   1100  157f		       ff 00 3c 	      .byte.b	#%11111111, #%00000000, #%00111100
+   1101  1582		       ff 80 3c 	      .byte.b	#%11111111, #%10000000, #%00111100
+   1102  1585		       ff c0 3c 	      .byte.b	#%11111111, #%11000000, #%00111100
+   1103  1588		       ff 40 3c 	      .byte.b	#%11111111, #%01000000, #%00111100
+   1104  158b		       ff 80 3c 	      .byte.b	#%11111111, #%10000000, #%00111100
+   1105  158e		       ff 00 3c 	      .byte.b	#%11111111, #%00000000, #%00111100
+   1106  1591		       ff c0 3c 	      .byte.b	#%11111111, #%11000000, #%00111100
+   1107  1594		       ff 80 3c 	      .byte.b	#%11111111, #%10000000, #%00111100
+   1108  1597		       ff 00 3c 	      .byte.b	#%11111111, #%00000000, #%00111100
+   1109  159a		       fe 00 3c 	      .byte.b	#%11111110, #%00000000, #%00111100
+   1110  159d		       fc 00 3c 	      .byte.b	#%11111100, #%00000000, #%00111100
+   1111  15a0		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1112  15a3		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1113  15a6		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1114  15a9		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1115  15ac		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1116  15af
+   1117  15af							; Left side gets smaller
+   1118  15af				   BLOCKESM
+   1119  15af		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1120  15b2		       f0 00 7c 	      .byte.b	#%11110000, #%00000000, #%01111100
+   1121  15b5		       f0 00 fc 	      .byte.b	#%11110000, #%00000000, #%11111100
+   1122  15b8		       f0 01 fc 	      .byte.b	#%11110000, #%00000001, #%11111100
+   1123  15bb		       f0 03 fc 	      .byte.b	#%11110000, #%00000011, #%11111100
+   1124  15be		       f0 07 fc 	      .byte.b	#%11110000, #%00000111, #%11111100
+   1125  15c1		       f0 0f fc 	      .byte.b	#%11110000, #%00001111, #%11111100
+   1126  15c4		       f0 1f fc 	      .byte.b	#%11110000, #%00011111, #%11111100
+   1127  15c7		       f0 3f fc 	      .byte.b	#%11110000, #%00111111, #%11111100
+   1128  15ca		       f0 7f fc 	      .byte.b	#%11110000, #%01111111, #%11111100
+   1129  15cd		       f0 3f fc 	      .byte.b	#%11110000, #%00111111, #%11111100
+   1130  15d0		       f0 1f fc 	      .byte.b	#%11110000, #%00011111, #%11111100
+   1131  15d3		       f0 0f fc 	      .byte.b	#%11110000, #%00001111, #%11111100
+   1132  15d6		       f0 07 fc 	      .byte.b	#%11110000, #%00000111, #%11111100
+   1133  15d9		       f0 03 fc 	      .byte.b	#%11110000, #%00000011, #%11111100
+   1134  15dc		       f0 01 fc 	      .byte.b	#%11110000, #%00000001, #%11111100
+   1135  15df		       f0 00 fc 	      .byte.b	#%11110000, #%00000000, #%11111100
+   1136  15e2		       f0 00 7c 	      .byte.b	#%11110000, #%00000000, #%01111100
+   1137  15e5		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1138  15e8		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1139  15eb
+   1140  15eb							; Winding road
+   1141  15eb				   BLOCKROAD
+   1142  15eb		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1143  15ee		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1144  15f1		       fe 01 fc 	      .byte.b	#%11111110, #%00000001, #%11111100
+   1145  15f4		       fe 01 fc 	      .byte.b	#%11111110, #%00000001, #%11111100
+   1146  15f7		       ff 03 fc 	      .byte.b	#%11111111, #%00000011, #%11111100
+   1147  15fa		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1148  15fd		       ff 0f fc 	      .byte.b	#%11111111, #%00001111, #%11111100
+   1149  1600		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1150  1603		       ff 03 fc 	      .byte.b	#%11111111, #%00000011, #%11111100
+   1151  1606		       ff 01 fc 	      .byte.b	#%11111111, #%00000001, #%11111100
+   1152  1609		       ff 80 fc 	      .byte.b	#%11111111, #%10000000, #%11111100
+   1153  160c		       ff e0 7c 	      .byte.b	#%11111111, #%11100000, #%01111100
+   1154  160f		       ff c0 fc 	      .byte.b	#%11111111, #%11000000, #%11111100
+   1155  1612		       ff c0 fc 	      .byte.b	#%11111111, #%11000000, #%11111100
+   1156  1615		       ff e0 fc 	      .byte.b	#%11111111, #%11100000, #%11111100
+   1157  1618		       ff c0 fc 	      .byte.b	#%11111111, #%11000000, #%11111100
+   1158  161b		       ff 80 fc 	      .byte.b	#%11111111, #%10000000, #%11111100
+   1159  161e		       ff 00 fc 	      .byte.b	#%11111111, #%00000000, #%11111100
+   1160  1621		       fe 00 7c 	      .byte.b	#%11111110, #%00000000, #%01111100
+   1161  1624		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1162  1627
+   1163  1627							;Split into 2 equal(ish) lanes
+   1164  1627				   BLOCKEQ
+   1165  1627		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1166  162a		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1167  162d		       f0 10 3c 	      .byte.b	#%11110000, #%00010000, #%00111100
+   1168  1630		       f0 10 3c 	      .byte.b	#%11110000, #%00010000, #%00111100
+   1169  1633		       f0 30 3c 	      .byte.b	#%11110000, #%00110000, #%00111100
+   1170  1636		       f0 30 3c 	      .byte.b	#%11110000, #%00110000, #%00111100
+   1171  1639		       f0 70 3c 	      .byte.b	#%11110000, #%01110000, #%00111100
+   1172  163c		       f0 60 3c 	      .byte.b	#%11110000, #%01100000, #%00111100
+   1173  163f		       f0 60 3c 	      .byte.b	#%11110000, #%01100000, #%00111100
+   1174  1642		       f0 60 3c 	      .byte.b	#%11110000, #%01100000, #%00111100
+   1175  1645		       f0 60 3c 	      .byte.b	#%11110000, #%01100000, #%00111100
+   1176  1648		       f0 60 3c 	      .byte.b	#%11110000, #%01100000, #%00111100
+   1177  164b		       f0 30 3c 	      .byte.b	#%11110000, #%00110000, #%00111100
+   1178  164e		       f0 10 3c 	      .byte.b	#%11110000, #%00010000, #%00111100
+   1179  1651		       f0 10 3c 	      .byte.b	#%11110000, #%00010000, #%00111100
+   1180  1654		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1181  1657		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1182  165a		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1183  165d		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1184  1660		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1185  1663							; One side is harder than the other
+   1186  1663				   BLOCK7
+   1187  1663		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1188  1666		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1189  1669		       f0 10 7c 	      .byte.b	#%11110000, #%00010000, #%01111100
+   1190  166c		       f0 18 7c 	      .byte.b	#%11110000, #%00011000, #%01111100
+   1191  166f		       f0 38 7c 	      .byte.b	#%11110000, #%00111000, #%01111100
+   1192  1672		       f0 38 7c 	      .byte.b	#%11110000, #%00111000, #%01111100
+   1193  1675		       f0 38 fc 	      .byte.b	#%11110000, #%00111000, #%11111100
+   1194  1678		       f0 38 fc 	      .byte.b	#%11110000, #%00111000, #%11111100
+   1195  167b		       f0 38 fc 	      .byte.b	#%11110000, #%00111000, #%11111100
+   1196  167e		       f0 38 fc 	      .byte.b	#%11110000, #%00111000, #%11111100
+   1197  1681		       f0 38 fc 	      .byte.b	#%11110000, #%00111000, #%11111100
+   1198  1684		       f0 18 fc 	      .byte.b	#%11110000, #%00011000, #%11111100
+   1199  1687		       f0 18 7c 	      .byte.b	#%11110000, #%00011000, #%01111100
+   1200  168a		       f0 18 7c 	      .byte.b	#%11110000, #%00011000, #%01111100
+   1201  168d		       f0 18 7c 	      .byte.b	#%11110000, #%00011000, #%01111100
+   1202  1690		       f0 08 3c 	      .byte.b	#%11110000, #%00001000, #%00111100
+   1203  1693		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1204  1696		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1205  1699		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1206  169c		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1207  169f
+   1208  169f							; Three separate lanes
+   1209  169f				   BLOCK8
+   1210  169f		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1211  16a2		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1212  16a5		       f0 10 7c 	      .byte.b	#%11110000, #%00010000, #%01111100
+   1213  16a8		       f0 30 7c 	      .byte.b	#%11110000, #%00110000, #%01111100
+   1214  16ab		       f0 f0 7c 	      .byte.b	#%11110000, #%11110000, #%01111100
+   1215  16ae		       c2 f0 7c 	      .byte.b	#%11000010, #%11110000, #%01111100
+   1216  16b1		       c2 a0 fc 	      .byte.b	#%11000010, #%10100000, #%11111100
+   1217  16b4		       c6 b0 fc 	      .byte.b	#%11000110, #%10110000, #%11111100
+   1218  16b7		       86 e0 fc 	      .byte.b	#%10000110, #%11100000, #%11111100
+   1219  16ba		       86 60 fc 	      .byte.b	#%10000110, #%01100000, #%11111100
+   1220  16bd		       86 e0 fc 	      .byte.b	#%10000110, #%11100000, #%11111100
+   1221  16c0		       86 18 fc 	      .byte.b	#%10000110, #%00011000, #%11111100
+   1222  16c3		       86 18 7c 	      .byte.b	#%10000110, #%00011000, #%01111100
+   1223  16c6		       86 30 7c 	      .byte.b	#%10000110, #%00110000, #%01111100
+   1224  16c9		       8e 60 7c 	      .byte.b	#%10001110, #%01100000, #%01111100
+   1225  16cc		       c0 20 3c 	      .byte.b	#%11000000, #%00100000, #%00111100
+   1226  16cf		       c0 00 3c 	      .byte.b	#%11000000, #%00000000, #%00111100
+   1227  16d2		       c0 00 3c 	      .byte.b	#%11000000, #%00000000, #%00111100
+   1228  16d5		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1229  16d8		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1230  16db
+   1231  16db							; Two lanes, one A LOT harder than the other
+   1232  16db				   BLOCK9
+   1233  16db		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1234  16de		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1235  16e1		       e0 10 7c 	      .byte.b	#%11100000, #%00010000, #%01111100
+   1236  16e4		       e0 18 7c 	      .byte.b	#%11100000, #%00011000, #%01111100
+   1237  16e7		       e0 38 7c 	      .byte.b	#%11100000, #%00111000, #%01111100
+   1238  16ea		       e0 38 fc 	      .byte.b	#%11100000, #%00111000, #%11111100
+   1239  16ed		       e0 39 fc 	      .byte.b	#%11100000, #%00111001, #%11111100
+   1240  16f0		       e0 3b fc 	      .byte.b	#%11100000, #%00111011, #%11111100
+   1241  16f3		       e0 39 fc 	      .byte.b	#%11100000, #%00111001, #%11111100
+   1242  16f6		       e0 3c fc 	      .byte.b	#%11100000, #%00111100, #%11111100
+   1243  16f9		       e0 3e 7c 	      .byte.b	#%11100000, #%00111110, #%01111100
+   1244  16fc		       e0 1e 7c 	      .byte.b	#%11100000, #%00011110, #%01111100
+   1245  16ff		       e0 1c 7c 	      .byte.b	#%11100000, #%00011100, #%01111100
+   1246  1702		       e0 18 7c 	      .byte.b	#%11100000, #%00011000, #%01111100
+   1247  1705		       e0 18 7c 	      .byte.b	#%11100000, #%00011000, #%01111100
+   1248  1708		       e0 08 3c 	      .byte.b	#%11100000, #%00001000, #%00111100
+   1249  170b		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1250  170e		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1251  1711		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1252  1714		       e0 00 78 	      .byte.b	#%11100000, #%00000000, #%001111000
+   1253  1717							; Tiny gap to fit through
+   1254  1717				   BLOCK10
+   1255  1717		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1256  171a		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1257  171d		       fc 00 3c 	      .byte.b	#%11111100, #%00000000, #%00111100
+   1258  1720		       fe 00 3c 	      .byte.b	#%11111110, #%00000000, #%00111100
+   1259  1723		       ff 00 3c 	      .byte.b	#%11111111, #%00000000, #%00111100
+   1260  1726		       ff 00 7c 	      .byte.b	#%11111111, #%00000000, #%01111100
+   1261  1729		       ff 00 fc 	      .byte.b	#%11111111, #%00000000, #%11111100
+   1262  172c		       ff 01 fc 	      .byte.b	#%11111111, #%00000001, #%11111100
+   1263  172f		       ff 03 fc 	      .byte.b	#%11111111, #%00000011, #%11111100
+   1264  1732		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1265  1735		       ff 0f fc 	      .byte.b	#%11111111, #%00001111, #%11111100
+   1266  1738		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1267  173b		       ff 0f fc 	      .byte.b	#%11111111, #%00001111, #%11111100
+   1268  173e		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1269  1741		       ff 0f fc 	      .byte.b	#%11111111, #%00001111, #%11111100
+   1270  1744		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1271  1747		       ff 03 fc 	      .byte.b	#%11111111, #%00000011, #%11111100
+   1272  174a		       ff 01 fc 	      .byte.b	#%11111111, #%00000001, #%11111100
+   1273  174d		       fe 00 7c 	      .byte.b	#%11111110, #%00000000, #%01111100
+   1274  1750		       fc 00 3c 	      .byte.b	#%11111100, #%00000000, #%00111100
+   1275  1753		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1276  1756		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1277  1759
+   1278  1759							; Winding but extremely small gap throughout
+   1279  1759				   BLOCK11
+   1280  1759		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1281  175c		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1282  175f		       fe 00 3c 	      .byte.b	#%11111110, #%00000000, #%00111100
+   1283  1762		       ff 80 3c 	      .byte.b	#%11111111, #%10000000, #%00111100
+   1284  1765		       ff c0 7c 	      .byte.b	#%11111111, #%11000000, #%01111100
+   1285  1768		       ff e1 fc 	      .byte.b	#%11111111, #%11100001, #%11111100
+   1286  176b		       ff 01 fc 	      .byte.b	#%11111111, #%00000001, #%11111100
+   1287  176e		       ff 83 fc 	      .byte.b	#%11111111, #%10000011, #%11111100
+   1288  1771		       ff 87 fc 	      .byte.b	#%11111111, #%10000111, #%11111100
+   1289  1774		       ff c1 fc 	      .byte.b	#%11111111, #%11000001, #%11111100
+   1290  1777		       ff 81 fc 	      .byte.b	#%11111111, #%10000001, #%11111100
+   1291  177a		       ff c3 fc 	      .byte.b	#%11111111, #%11000011, #%11111100
+   1292  177d		       ff c3 fc 	      .byte.b	#%11111111, #%11000011, #%11111100
+   1293  1780		       ff e0 fc 	      .byte.b	#%11111111, #%11100000, #%11111100
+   1294  1783		       ff c0 7c 	      .byte.b	#%11111111, #%11000000, #%01111100
+   1295  1786		       ff c0 fc 	      .byte.b	#%11111111, #%11000000, #%11111100
+   1296  1789		       ff 81 fc 	      .byte.b	#%11111111, #%10000001, #%11111100
+   1297  178c		       ff 83 fc 	      .byte.b	#%11111111, #%10000011, #%11111100
+   1298  178f		       ff c1 fc 	      .byte.b	#%11111111, #%11000001, #%11111100
+   1299  1792		       ff 80 fc 	      .byte.b	#%11111111, #%10000000, #%11111100
+   1300  1795		       ff 00 fc 	      .byte.b	#%11111111, #%00000000, #%11111100
+   1301  1798		       fe 00 7c 	      .byte.b	#%11111110, #%00000000, #%01111100
+   1302  179b		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1303  179e
+   1304  179e							; Starts 2 separate, begins winding with separation
+   1305  179e				   BLOCK12
+   1306  179e		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1307  17a1		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1308  17a4		       f0 10 3c 	      .byte.b	#%11110000, #%00010000, #%00111100
+   1309  17a7		       f0 10 3c 	      .byte.b	#%11110000, #%00010000, #%00111100
+   1310  17aa		       f0 30 3c 	      .byte.b	#%11110000, #%00110000, #%00111100
+   1311  17ad		       f0 38 3c 	      .byte.b	#%11110000, #%00111000, #%00111100
+   1312  17b0		       f0 78 3c 	      .byte.b	#%11110000, #%01111000, #%00111100
+   1313  17b3		       f0 78 3c 	      .byte.b	#%11110000, #%01111000, #%00111100
+   1314  17b6		       f0 78 3c 	      .byte.b	#%11110000, #%01111000, #%00111100
+   1315  17b9		       f0 78 3c 	      .byte.b	#%11110000, #%01111000, #%00111100
+   1316  17bc		       f0 78 3c 	      .byte.b	#%11110000, #%01111000, #%00111100
+   1317  17bf		       f0 78 3c 	      .byte.b	#%11110000, #%01111000, #%00111100
+   1318  17c2		       f0 38 3c 	      .byte.b	#%11110000, #%00111000, #%00111100
+   1319  17c5		       f0 38 3c 	      .byte.b	#%11110000, #%00111000, #%00111100
+   1320  17c8		       f0 38 3c 	      .byte.b	#%11110000, #%00111000, #%00111100
+   1321  17cb		       f0 38 3c 	      .byte.b	#%11110000, #%00111000, #%00111100
+   1322  17ce		       f0 7c 1c 	      .byte.b	#%11110000, #%01111100, #%00011100
+   1323  17d1		       f0 ff 0c 	      .byte.b	#%11110000, #%11111111, #%00001100
+   1324  17d4		       c0 ff 8c 	      .byte.b	#%11000000, #%11111111, #%10001100
+   1325  17d7		       e0 ff cc 	      .byte.b	#%11100000, #%11111111, #%11001100
+   1326  17da		       c0 ff 9c 	      .byte.b	#%11000000, #%11111111, #%10011100
+   1327  17dd		       c0 ff 3c 	      .byte.b	#%11000000, #%11111111, #%00111100
+   1328  17e0		       e0 fe 3c 	      .byte.b	#%11100000, #%11111110, #%00111100
+   1329  17e3		       f0 fc 3c 	      .byte.b	#%11110000, #%11111100, #%00111100
+   1330  17e6		       c0 fc 3c 	      .byte.b	#%11000000, #%11111100, #%00111100
+   1331  17e9		       f0 fc 0c 	      .byte.b	#%11110000, #%11111100, #%00001100
+   1332  17ec		       c0 7c 3c 	      .byte.b	#%11000000, #%01111100, #%00111100
+   1333  17ef		       f0 38 3c 	      .byte.b	#%11110000, #%00111000, #%00111100
+   1334  17f2		       f0 18 3c 	      .byte.b	#%11110000, #%00011000, #%00111100
+   1335  17f5		       f0 08 3c 	      .byte.b	#%11110000, #%00001000, #%00111100
+   1336  17f8		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1337  17fb		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1338  17fe
+   1339  17fe
+   1340  17fe							;Winding road, ended how I started(does that matter?) should path be wider than 3?
+   1341  17fe				   BLOCK13
+   1342  17fe		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1343  1801		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1344  1804		       fe 01 fc 	      .byte.b	#%11111110, #%00000001, #%11111100
+   1345  1807		       fe 01 fc 	      .byte.b	#%11111110, #%00000001, #%11111100
+   1346  180a		       ff 01 fc 	      .byte.b	#%11111111, #%00000001, #%11111100
+   1347  180d		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1348  1810		       ff 0f fc 	      .byte.b	#%11111111, #%00001111, #%11111100
+   1349  1813		       ff 07 fc 	      .byte.b	#%11111111, #%00000111, #%11111100
+   1350  1816		       ff 03 fc 	      .byte.b	#%11111111, #%00000011, #%11111100
+   1351  1819		       ff 01 fc 	      .byte.b	#%11111111, #%00000001, #%11111100
+   1352  181c		       ff 00 fc 	      .byte.b	#%11111111, #%00000000, #%11111100
+   1353  181f		       ff c0 7c 	      .byte.b	#%11111111, #%11000000, #%01111100
+   1354  1822		       ff e0 3c 	      .byte.b	#%11111111, #%11100000, #%00111100
+   1355  1825		       ff f0 3c 	      .byte.b	#%11111111, #%11110000, #%00111100
+   1356  1828		       ff e0 3c 	      .byte.b	#%11111111, #%11100000, #%00111100
+   1357  182b		       ff c0 3c 	      .byte.b	#%11111111, #%11000000, #%00111100
+   1358  182e		       ff 80 3c 	      .byte.b	#%11111111, #%10000000, #%00111100
+   1359  1831		       ff 00 3c 	      .byte.b	#%11111111, #%00000000, #%00111100
+   1360  1834		       fe 00 7c 	      .byte.b	#%11111110, #%00000000, #%01111100
+   1361  1837		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1362  183a
+   1363  183a
+   1364  183a							;Tried to make one where going down one path makes it significantly harder, is it too hard now?
+   1365  183a				   BLOCK14
+   1366  183a		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1367  183d		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1368  1840		       fc 00 7c 	      .byte.b	#%11111100, #%00000000, #%01111100
+   1369  1843		       fe 00 fc 	      .byte.b	#%11111110, #%00000000, #%11111100
+   1370  1846		       fe 01 fc 	      .byte.b	#%11111110, #%00000001, #%11111100
+   1371  1849		       fc 01 7c 	      .byte.b	#%11111100, #%00000001, #%01111100
+   1372  184c		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1373  184f		       f8 18 7c 	      .byte.b	#%11111000, #%00011000, #%01111100
+   1374  1852		       f8 1c 7c 	      .byte.b	#%11111000, #%00011100, #%01111100
+   1375  1855		       f8 1c 7c 	      .byte.b	#%11111000, #%00011100, #%01111100
+   1376  1858		       f8 1c 7c 	      .byte.b	#%11111000, #%00011100, #%01111100
+   1377  185b		       f8 1c 7c 	      .byte.b	#%11111000, #%00011100, #%01111100
+   1378  185e		       f8 18 7c 	      .byte.b	#%11111000, #%00011000, #%01111100
+   1379  1861		       f8 10 7c 	      .byte.b	#%11111000, #%00010000, #%01111100
+   1380  1864		       f8 10 7c 	      .byte.b	#%11111000, #%00010000, #%01111100
+   1381  1867		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1382  186a		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1383  186d							;3 lane
+   1384  186d				   BLOCK15
+   1385  186d		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1386  1870		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1387  1873		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1388  1876		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1389  1879		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1390  187c		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1391  187f		       f8 18 7c 	      .byte.b	#%11111000, #%00011000, #%01111100
+   1392  1882		       f8 18 7c 	      .byte.b	#%11111000, #%00011000, #%01111100
+   1393  1885		       f8 1c 7c 	      .byte.b	#%11111000, #%00011100, #%01111100
+   1394  1888		       f0 1c 7c 	      .byte.b	#%11110000, #%00011100, #%01111100
+   1395  188b		       e1 1c 7c 	      .byte.b	#%11100001, #%00011100, #%01111100
+   1396  188e		       c3 1c 7c 	      .byte.b	#%11000011, #%00011100, #%01111100
+   1397  1891		       c3 18 7c 	      .byte.b	#%11000011, #%00011000, #%01111100
+   1398  1894		       c3 10 7c 	      .byte.b	#%11000011, #%00010000, #%01111100
+   1399  1897		       e1 10 7c 	      .byte.b	#%11100001, #%00010000, #%01111100
+   1400  189a		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1401  189d		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1402  18a0
+   1403  18a0							;Basic shrinking
+   1404  18a0				   BLOCK16
+   1405  18a0		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1406  18a3		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1407  18a6		       fc 00 7c 	      .byte.b	#%11111100, #%00000000, #%01111100
+   1408  18a9		       fe 00 fc 	      .byte.b	#%11111110, #%00000000, #%11111100
+   1409  18ac		       fe 00 fc 	      .byte.b	#%11111110, #%00000000, #%11111100
+   1410  18af		       ff 80 fc 	      .byte.b	#%11111111, #%10000000, #%11111100
+   1411  18b2		       ff 81 fc 	      .byte.b	#%11111111, #%10000001, #%11111100
+   1412  18b5		       ff 83 fc 	      .byte.b	#%11111111, #%10000011, #%11111100
+   1413  18b8		       ff 81 fc 	      .byte.b	#%11111111, #%10000001, #%11111100
+   1414  18bb		       fe 00 fc 	      .byte.b	#%11111110, #%00000000, #%11111100
+   1415  18be		       fc 00 7c 	      .byte.b	#%11111100, #%00000000, #%01111100
+   1416  18c1		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1417  18c4
+   1418  18c4							;Gets wider (easier) could use with a powerup?? idk
+   1419  18c4				   BLOCK17
+   1420  18c4		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1421  18c7		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1422  18ca		       f8 00 3c 	      .byte.b	#%11111000, #%00000000, #%00111100
+   1423  18cd		       f0 00 3c 	      .byte.b	#%11110000, #%00000000, #%00111100
+   1424  18d0		       f0 00 1c 	      .byte.b	#%11110000, #%00000000, #%00011100
+   1425  18d3		       f0 00 1c 	      .byte.b	#%11110000, #%00000000, #%00011100
+   1426  18d6		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1427  18d9		       e0 00 3c 	      .byte.b	#%11100000, #%00000000, #%00111100
+   1428  18dc		       e0 00 7c 	      .byte.b	#%11100000, #%00000000, #%01111100
+   1429  18df		       f0 00 7c 	      .byte.b	#%11110000, #%00000000, #%01111100
+   1430  18e2		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1431  18e5		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1432  18e8
+   1433  18e8							;One where either path is the same size
+   1434  18e8				   BLOCK18
+   1435  18e8		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1436  18eb		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1437  18ee		       fc 00 7c 	      .byte.b	#%11111100, #%00000000, #%01111100
+   1438  18f1		       fe 00 fc 	      .byte.b	#%11111110, #%00000000, #%11111100
+   1439  18f4		       fe 01 fc 	      .byte.b	#%11111110, #%00000001, #%11111100
+   1440  18f7		       fc 01 7c 	      .byte.b	#%11111100, #%00000001, #%01111100
+   1441  18fa		       fc 08 3c 	      .byte.b	#%11111100, #%00001000, #%00111100
+   1442  18fd		       fc 18 3c 	      .byte.b	#%11111100, #%00011000, #%00111100
+   1443  1900		       fc 18 3c 	      .byte.b	#%11111100, #%00011000, #%00111100
+   1444  1903		       fc 0c 3c 	      .byte.b	#%11111100, #%00001100, #%00111100
+   1445  1906		       fc 08 3c 	      .byte.b	#%11111100, #%00001000, #%00111100
+   1446  1909		       fc 0f 3c 	      .byte.b	#%11111100, #%00001111, #%00111100
+   1447  190c		       fc 1f 3c 	      .byte.b	#%11111100, #%00011111, #%00111100
+   1448  190f		       f8 17 7c 	      .byte.b	#%11111000, #%00010111, #%01111100
+   1449  1912		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1450  1915		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1451  1918		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1452  191b
+   1453  191b				   BLOCK19
+   1454  191b		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1455  191e		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1456  1921		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1457  1924		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1458  1927		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1459  192a		       f8 00 7c 	      .byte.b	#%11111000, #%00000000, #%01111100
+   1460  192d				   BLOCKSEND
+   1461  192d
+   1462  192d
+   1463  192d							; NOTE, NOTE, NOTE, DURATION
+   1464  192d				   RIFF
+   1465  192d
+   1466  192d		       e8 e0 cc 05*	      .byte.b	232,224,204,5,232,224,214,5,232,224,217,5,232,224,204,10,232,224,204,10,232,224,204,5
+   1467  1945		       e8 e0 d1 0a*	      .byte.b	232,224,209,10,232,224,204,10,232,224,209,5,232,224,214,5,232,224,217,10
+   1468  1959		       e5 dd cc 05*	      .byte.b	229,221,204,5,229,221,214,5,229,221,217,5,229,221,204,10,229,221,204,10,229,221,204,5
+   1469  1971		       e5 dd d1 0a*	      .byte.b	229,221,209,10,229,221,204,10,229,221,209,5,229,221,214,5,229,221,217,10
+   1470  1985		       e2 d9 d1 05*	      .byte.b	226,217,209,5,226,217,214,5,226,217,217,5,226,217,209,10,226,217,209,10,226,217,209,5
+   1471  199d		       e2 d9 d1 0a*	      .byte.b	226,217,209,10,226,217,204,10,226,217,209,5,226,217,214,5,226,217,217,10
+   1472  19b1		       e5 dd cc 05*	      .byte.b	229,221,204,5,229,221,214,5,229,221,217,5,229,221,204,10,229,221,204,10,229,221,204,5
+   1473  19c9		       e0 d6 d1 0a*	      .byte.b	224,214,209,10,224,214,204,10,229,221,214,5,229,221,217,5,229,221,224,10,0
+   1474  19de
+   1475  19de
+   1476  19de
+------- FILE zx02_decomp.iasm LEVEL 2 PASS 2
+      0  19de					      include	"zx02_decomp.iasm"
+      1  19de							; ZX02 Decompressor from https://github.com/dmsc/zx02
+      2  19de							; Some labels have been changed to work with dasm
+      3  19de							; No changes other than the defining of anonymous labels have been made
+      4  19de
+      5  19de
+      6  19de							; MIT License
+      7  19de							;
+      8  19de							; Copyright (c) 2020 Daniel Serpell
+      9  19de							;
+     10  19de							; Permission is hereby granted, free of charge, to any person obtaining a copy
+     11  19de							; of this software and associated documentation files (the "Software"), to deal
+     12  19de							; in the Software without restriction, including without limitation the rights
+     13  19de							; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     14  19de							; copies of the Software, and to permit persons to whom the Software is
+     15  19de							; furnished to do so, subject to the following conditions:
+     16  19de							;
+     17  19de							; The above copyright notice and this permission notice shall be included in all
+     18  19de							; copies or substantial portions of the Software.
+     19  19de							;
+     20  19de							; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     21  19de							; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     22  19de							; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     23  19de							; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     24  19de							; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     25  19de							; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+     26  19de							; SOFTWARE.
+     27  19de
+     28  19de							; BSD 3-Clause License
+     29  19de							;
+     30  19de							; Copyright (c) 2021, Einar Saukas
+     31  19de							; All rights reserved.
+     32  19de							;
+     33  19de							; Redistribution and use in source and binary forms, with or without
+     34  19de							; modification, are permitted provided that the following conditions are met:
+     35  19de							;
+     36  19de							; 1. Redistributions of source code must retain the above copyright notice, this
+     37  19de							;    list of conditions and the following disclaimer.
+     38  19de							;
+     39  19de							; 2. Redistributions in binary form must reproduce the above copyright notice,
+     40  19de							;    this list of conditions and the following disclaimer in the documentation
+     41  19de							;    and/or other materials provided with the distribution.
+     42  19de							;
+     43  19de							; 3. Neither the name of the copyright holder nor the names of its
+     44  19de							;    contributors may be used to endorse or promote products derived from
+     45  19de							;    this software without specific prior written permission.
+     46  19de							;
+     47  19de							; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+     48  19de							; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+     49  19de							; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+     50  19de							; DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+     51  19de							; FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+     52  19de							; DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+     53  19de							; SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+     54  19de							; CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+     55  19de							; OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+     56  19de							; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+     57  19de
+     58  19de					      processor	6502
+     59  19de
+     60  19de		       00 30	   ZP	      =	$30
+     61  19de		       00 30	   offset     equ	ZP+0
+     62  19de		       00 32	   ZX0_src    equ	ZP+2
+     63  19de		       00 34	   ZX0_dst    equ	ZP+4
+     64  19de		       00 36	   bitr       equ	ZP+6
+     65  19de		       00 37	   pntr       equ	ZP+7
+     66  19de
+     67  19de
+     68  19de				   zx0_ini_block
+     69  19de		       00 00 ff ff*	      dc.b	$00, $00, $ff, $ff, $00, $1e, $80
+     70  19e5
+     71  19e5				   full_decomp
+     72  19e5							; Get initialization block
+     73  19e5		       a0 07		      ldy	#7
+     74  19e7
+     75  19e7		       b9 dd 19    copy_init  lda	zx0_ini_block-1,y
+     76  19ea		       99 2f 00 	      sta	offset-1,y
+     77  19ed		       88		      dey
+     78  19ee		       d0 f7		      bne	copy_init
+     79  19f0
+     80  19f0							; Decode literal: Ccopy next N bytes from compressed file
+     81  19f0							;    Elias(length)  byte[1]  byte[2]  ...  byte[N]
+     82  19f0				   decode_literal
+     83  19f0		       20 4d 1a 	      jsr	get_elias
+     84  19f3
+     85  19f3		       b1 32	   cop0       lda	(ZX0_src),y
+     86  19f5		       e6 32		      inc	ZX0_src
+     87  19f7		       d0 02		      bne	.cop01
+     88  19f9		       e6 33		      inc	ZX0_src+1
+     89  19fb		       91 34	   .cop01     sta	(ZX0_dst),y
+     90  19fd		       e6 34		      inc	ZX0_dst
+     91  19ff		       d0 02		      bne	.cop02
+     92  1a01		       e6 35		      inc	ZX0_dst+1
+     93  1a03		       ca	   .cop02     dex
+     94  1a04		       d0 ed		      bne	cop0
+     95  1a06
+     96  1a06		       06 36		      asl	bitr
+     97  1a08		       b0 26		      bcs	dzx0s_new_offset
+     98  1a0a
+     99  1a0a							; Copy from last offset (repeat N bytes from last offset)
+    100  1a0a							;    Elias(length)
+    101  1a0a		       20 4d 1a 	      jsr	get_elias
+    102  1a0d				   dzx0s_copy
+    103  1a0d		       a5 34		      lda	ZX0_dst
+    104  1a0f		       e5 30		      sbc	offset	; C=0 from get_elias
+    105  1a11		       85 37		      sta	pntr
+    106  1a13		       a5 35		      lda	ZX0_dst+1
+    107  1a15		       e5 31		      sbc	offset+1
+    108  1a17		       85 38		      sta	pntr+1
+    109  1a19
+    110  1a19				   cop1
+    111  1a19		       b1 37		      lda	(pntr),y
+    112  1a1b		       e6 37		      inc	pntr
+    113  1a1d		       d0 02		      bne	.cop11
+    114  1a1f		       e6 38		      inc	pntr+1
+    115  1a21		       91 34	   .cop11     sta	(ZX0_dst),y
+    116  1a23		       e6 34		      inc	ZX0_dst
+    117  1a25		       d0 02		      bne	.cop12
+    118  1a27		       e6 35		      inc	ZX0_dst+1
+    119  1a29		       ca	   .cop12     dex
+    120  1a2a		       d0 ed		      bne	cop1
+    121  1a2c
+    122  1a2c		       06 36		      asl	bitr
+    123  1a2e		       90 c0		      bcc	decode_literal
+    124  1a30
+    125  1a30							; Copy from new offset (repeat N bytes from new offset)
+    126  1a30							;    Elias(MSB(offset))  LSB(offset)  Elias(length-1)
+    127  1a30				   dzx0s_new_offset
+    128  1a30							; Read elias code for high part of offset
+    129  1a30		       20 4d 1a 	      jsr	get_elias
+    130  1a33		       f0 32		      beq	exit	; Read a 0, signals the end
+    131  1a35							; Decrease and divide by 2
+    132  1a35		       ca		      dex
+    133  1a36		       8a		      txa
+    134  1a37		       4a		      lsr
+    135  1a38		       85 31		      sta	offset+1
+    136  1a3a
+    137  1a3a							; Get low part of offset, a literal 7 bits
+    138  1a3a		       b1 32		      lda	(ZX0_src),y
+    139  1a3c		       e6 32		      inc	ZX0_src
+    140  1a3e		       d0 02		      bne	.dzx0s_new_offset1
+    141  1a40		       e6 33		      inc	ZX0_src+1
+    142  1a42
+    143  1a42				   .dzx0s_new_offset1
+    144  1a42							; Divide by 2
+    145  1a42		       6a		      ror
+    146  1a43		       85 30		      sta	offset
+    147  1a45
+    148  1a45							; And get the copy length.
+    149  1a45							; Start elias reading with the bit already in carry:
+    150  1a45		       a2 01		      ldx	#1
+    151  1a47		       20 64 1a 	      jsr	elias_skip1
+    152  1a4a
+    153  1a4a		       e8		      inx
+    154  1a4b		       90 c0		      bcc	dzx0s_copy
+    155  1a4d
+    156  1a4d							; Read an elias-gamma interlaced code.
+    157  1a4d							; ------------------------------------
+    158  1a4d				   get_elias
+    159  1a4d							; Initialize return value to #1
+    160  1a4d		       a2 01		      ldx	#1
+    161  1a4f		       d0 04		      bne	elias_start
+    162  1a51
+    163  1a51				   elias_get		; Read next data bit to result
+    164  1a51		       06 36		      asl	bitr
+    165  1a53		       2a		      rol
+    166  1a54		       aa		      tax
+    167  1a55
+    168  1a55				   elias_start
+    169  1a55							; Get one bit
+    170  1a55		       06 36		      asl	bitr
+    171  1a57		       d0 0b		      bne	elias_skip1
+    172  1a59
+    173  1a59							; Read new bit from stream
+    174  1a59		       b1 32		      lda	(ZX0_src),y
+    175  1a5b		       e6 32		      inc	ZX0_src
+    176  1a5d		       d0 02		      bne	.elias_start1
+    177  1a5f		       e6 33		      inc	ZX0_src+1
+    178  1a61				   .elias_start1		;sec	; not needed, C=1 guaranteed from last bit
+    179  1a61		       2a		      rol
+    180  1a62		       85 36		      sta	bitr
+    181  1a64
+    182  1a64				   elias_skip1
+    183  1a64		       8a		      txa
+    184  1a65		       b0 ea		      bcs	elias_get
+    185  1a67							; Got ending bit, stop reading
+    186  1a67				   exit
+    187  1a67		       60		      rts
+    188  1a68
+    189  1a68
+------- FILE game-new.asm
+   1478  1a68				   TITLESCREEN
+   1479  1a68					      incbin	"titleData.bin.zx02"
+   1480  1b5e				   GAMEOVERSCRN
+   1481  1b5e					      incbin	"gameOver.bin.zx02"
+   1482  1c0f
